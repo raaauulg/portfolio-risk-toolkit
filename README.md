@@ -29,8 +29,14 @@ del proyecto:
 ```powershell
 git fetch origin
 git switch feat/bloques-4-1-4-3
-git pull --ff-only
+git pull --ff-only origin feat/bloques-4-1-4-3
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip check
 ```
+
+La reinstalación actualiza las dependencias declaradas, también cuando el
+paquete ya está instalado en modo editable. Esta rama utiliza
+`pandas==3.1.0` y `yfinance==1.8.0`.
 
 ## Ejecutar las pruebas
 
@@ -82,7 +88,10 @@ print(pib.valores)
 
 Un indicador macroeconómico no es una serie de precios y no se incluye
 directamente en la cartera. La moneda puede indicarse al descargar un activo
-o recuperarse, si está disponible, de Yahoo. No se convierten divisas.
+o recuperarse, si está disponible, de Yahoo: primero se consultan los metadatos
+históricos y después `fast_info["currency"]`. Si ambas consultas fallan o no
+devuelven texto válido, queda `None` y se conservan los precios. La moneda
+indicada expresamente tiene prioridad. No se convierten divisas.
 
 ## Modelado (apartado 4.3)
 
@@ -100,7 +109,27 @@ o recuperarse, si está disponible, de Yahoo. No se convierten divisas.
 - `tests/`: pruebas automáticas.
 - `ejemplos/`: demostración reproducible.
 - `docs/fuentes_datos.md`: descripción de fuentes y limitaciones.
+- `docs/revision_integracion.md`: comprobación de la interfaz con `monte-carlo`
+  y puntos pendientes para una futura integración.
 
 Los métodos de Monte Carlo, limpieza y reportes se desarrollan en otra rama
-y todavía no están integrados. Falta verificar la instalación en un entorno
-limpio y probar las consultas reales a las APIs.
+y todavía no están integrados.
+
+## Verificación del 5 de noviembre de 2026
+
+En una copia separada de esta rama y un entorno virtual nuevo con Python
+3.12.8, pandas 3.1.0 y yfinance 1.8.0:
+
+- Instalación editable correcta y `pip check` sin conflictos.
+- 29 pruebas y 14 subcasos correctos con `python -m pytest -q -W error`.
+- `ejemplos/demo_basica.py` correcto.
+- Lote real AAPL/MSFT/^GSPC, del 2025-01-01 al 2026-01-01: 250 observaciones
+  por activo y moneda USD en los tres.
+- Banco Mundial: PIB nominal de España, 2020–2024, con 5 observaciones.
+- Sin avisos en esas consultas reales. No se han añadido filtros para ocultarlos.
+
+Los avisos `Pandas4Warning` se reprodujeron con yfinance 1.7.0 y pandas 3.1.0.
+yfinance 1.8.0 incorpora la [corrección de las llamadas `inplace`](https://github.com/ranaroussi/yfinance/pull/3020),
+por lo que se actualiza únicamente esa dependencia directa y se mantiene pandas.
+Estas comprobaciones cubren las funciones utilizadas en el taller, no todas
+las funciones de yfinance ni todas las versiones admitidas de Python.

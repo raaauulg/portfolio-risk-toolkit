@@ -1,5 +1,6 @@
 """Extracción de precios bursátiles con Yahoo Finance (apartado 4.2)."""
 
+from collections.abc import Mapping
 from datetime import date
 
 import pandas as pd
@@ -18,6 +19,8 @@ def descargar_serie(
     """Descarga cierres diarios ajustados y crea una SeriePrecios.
 
     Las fechas tienen formato AAAA-MM-DD; fin es exclusivo.
+    La moneda indicada tiene prioridad; si falta, se consultan los metadatos
+    y después fast_info. Si ambos fallan, se conserva moneda=None.
     """
     if not isinstance(ticker, str) or not ticker.strip():
         raise ValueError("El ticker debe ser un texto no vacío.")
@@ -54,12 +57,20 @@ def descargar_serie(
     if moneda is None:
         try:
             metadatos = instrumento.get_history_metadata()
-            if isinstance(metadatos, dict):
+            if isinstance(metadatos, Mapping):
                 valor = metadatos.get("currency")
                 if isinstance(valor, str) and valor.strip():
                     moneda = valor.strip().upper()
         except Exception:
             moneda = None
+
+        if moneda is None:
+            try:
+                valor = instrumento.fast_info["currency"]
+                if isinstance(valor, str) and valor.strip():
+                    moneda = valor.strip().upper()
+            except Exception:
+                moneda = None
 
     return SeriePrecios(
         ticker=ticker,

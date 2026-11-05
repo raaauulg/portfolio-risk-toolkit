@@ -36,9 +36,34 @@ print(pib.valores)
 - La fecha final de Yahoo Finance es exclusiva.
 - Los cierres descargados se ajustan mediante `auto_adjust=True`.
 - Las monedas pueden proporcionarse expresamente. Si no se indican, se intenta
-  recuperarlas de los metadatos de Yahoo Finance. Si no están disponibles,
-  la moneda queda sin confirmar. No se realiza conversión entre divisas.
+  recuperarlas de los metadatos históricos de Yahoo Finance y, si falta un valor
+  válido o falla la consulta, de `fast_info["currency"]`. Si tampoco se obtiene
+  allí, la moneda queda como `None` y la descarga de precios sigue siendo válida.
+  Se eliminan espacios y se normaliza a mayúsculas, como en la versión anterior.
+  No se realiza conversión entre divisas; indicar una moneda solo fija metadatos.
 - Una descarga que falle detiene el lote con un error; no se omiten activos
   silenciosamente.
 - Las APIs externas requieren conexión, y pueden imponer límites o cambiar
   la disponibilidad de los datos.
+
+## Metadatos y compatibilidad comprobados
+
+En yfinance 1.7.0, `get_history_metadata()` devuelve `HistoryMetadata`, un
+objeto de tipo `Mapping`, no un `dict`. La comprobación anterior lo descartaba
+aunque tuviera `currency`. El extractor acepta ahora `Mapping` (incluidos los
+diccionarios normales) y mantiene `fast_info` como segundo intento. Este último
+también puede depender de los metadatos de Yahoo: no garantiza conocer la moneda.
+
+Con pandas 3.1.0, las llamadas internas de yfinance 1.7.0 a operaciones como
+`sort_index(inplace=True)` generan avisos de obsolescencia. `pip check` puede
+pasar porque comprueba requisitos declarados, no la ausencia de avisos en
+ejecución. Las descargas observadas seguían funcionando.
+
+Se ha probado y fijado yfinance 1.8.0 con pandas 3.1.0: las consultas del README
+terminaron sin avisos, sin aplicar parches locales a las bibliotecas ni añadir filtros
+de advertencias. Referencias del proveedor:
+
+- [Cambio de pandas 3.1 sobre `inplace`](https://pandas.pydata.org/pandas-docs/stable/whatsnew/v3.1.0.html#deprecated-inplace-keyword-for-various-methods).
+- [Incidencia de yfinance 1.7.0](https://github.com/ranaroussi/yfinance/issues/3009).
+- [Corrección incorporada](https://github.com/ranaroussi/yfinance/pull/3020) y
+  [publicación de yfinance 1.8.0](https://github.com/ranaroussi/yfinance/releases/tag/1.8.0).
