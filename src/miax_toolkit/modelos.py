@@ -15,8 +15,17 @@ class SeriePrecios:
     fuente: str
     tipo_activo: str = "accion"
     moneda: str | None = None
+    frecuencia: str = "diaria"
     media: float = field(init=False)
     desviacion_tipica: float = field(init=False)
+
+    @property
+    def valores(self) -> pd.Series:
+        """Acceso común a los datos, también disponible en SerieIndicador.
+
+        Es la misma serie que precios, sin duplicar sus datos.
+        """
+        return self.precios
 
     def __post_init__(self) -> None:
         if (not isinstance(self.ticker, str) or not self.ticker.strip()

@@ -11,8 +11,11 @@ El toolkit utiliza dos servicios de datos:
   macroeconómicos, como el PIB nominal. `descargar_indicador()` devuelve un
   objeto `SerieIndicador` con fechas anuales y valores numéricos.
 
-Ambos extractores normalizan los datos numéricos a `pandas.Series` con
-índice temporal y conservan su procedencia. Sin embargo, **un indicador
+Ambos extractores exponen `valores`, `fuente` y `frecuencia`. `valores` es una
+`pandas.Series` de tipo `float64` con índice temporal ordenado y sin zona horaria.
+La frecuencia es diaria en Yahoo y anual en Banco Mundial. En `SeriePrecios`,
+`valores` es una propiedad que accede a `precios`; el código anterior sigue siendo
+válido. Los contenedores conservan sus metadatos específicos. **Un indicador
 macroeconómico no es una serie de precios**: no debe introducirse directamente
 en una `Cartera` de activos cotizados.
 

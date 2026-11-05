@@ -55,6 +55,18 @@ requieren Internet una vez instaladas las dependencias.
 
 El ejemplo utiliza precios sintéticos para mostrar las DataClasses y la cartera.
 
+## Demostración completa de los apartados 4.1–4.3
+
+```powershell
+.\.venv\Scripts\python.exe ejemplos/demo_bloques_4_1_4_3.py
+```
+
+Requiere Internet. Descarga AAPL, MSFT y ^GSPC, consulta el PIB de España,
+muestra las series mediante una interfaz común y construye una cartera
+de dos acciones con pesos 0.6/0.4. El índice y el PIB se muestran por separado.
+La [guía de los bloques 4.1–4.3](docs/guia_bloques_4_1_4_3.md) relaciona cada
+requisito con su implementación y explica las decisiones para la presentación.
+
 ## Ejemplo con datos reales (requiere conexión)
 
 ```python
@@ -86,6 +98,17 @@ pib = descargar_indicador("ESP", "NY.GDP.MKTP.CD", 2020, 2024)
 print(pib.valores)
 ```
 
+Ambas fuentes ofrecen la misma interfaz de consulta: `valores` (una
+`pandas.Series` numérica con fechas), `fuente` y `frecuencia`. Por ejemplo:
+
+```python
+for serie in [apple, pib]:
+    print(serie.fuente, serie.frecuencia, serie.valores.head())
+```
+
+Los contenedores conservan sus metadatos específicos. En `SeriePrecios`,
+`valores` da acceso a los mismos datos que `precios`, sin duplicarlos.
+
 Un indicador macroeconómico no es una serie de precios y no se incluye
 directamente en la cartera. La moneda puede indicarse al descargar un activo
 o recuperarse, si está disponible, de Yahoo: primero se consultan los metadatos
@@ -96,7 +119,7 @@ indicada expresamente tiene prioridad. No se convierten divisas.
 ## Modelado (apartado 4.3)
 
 - `SeriePrecios`: DataClass con ticker, fuente, tipo de activo,
-  moneda y precios con índice de fechas. Calcula automáticamente media y
+  moneda, frecuencia y precios con índice de fechas. Calcula automáticamente media y
   desviación típica muestral.
 - `Cartera`: DataClass que agrupa activos y sus ponderaciones,
   valida la coincidencia de nombres y comprueba que los pesos sumen 1.
@@ -109,6 +132,7 @@ indicada expresamente tiene prioridad. No se convierten divisas.
 - `tests/`: pruebas automáticas.
 - `ejemplos/`: demostración reproducible.
 - `docs/fuentes_datos.md`: descripción de fuentes y limitaciones.
+- `docs/guia_bloques_4_1_4_3.md`: requisitos, demostración y explicación de esta parte.
 - `docs/revision_integracion.md`: comprobación de la interfaz con `monte-carlo`
   y puntos pendientes para una futura integración.
 
@@ -121,8 +145,9 @@ En una copia separada de esta rama y un entorno virtual nuevo con Python
 3.12.8, pandas 3.1.0 y yfinance 1.8.0:
 
 - Instalación editable correcta y `pip check` sin conflictos.
-- 29 pruebas y 14 subcasos correctos con `python -m pytest -q -W error`.
-- `ejemplos/demo_basica.py` correcto.
+- 31 pruebas y 17 subcasos correctos con `python -m pytest -q -W error`, incluido
+  el contrato multifuente y el rechazo de indicadores en la cartera.
+- `ejemplos/demo_basica.py` y `ejemplos/demo_bloques_4_1_4_3.py` correctos.
 - Lote real AAPL/MSFT/^GSPC, del 2025-01-01 al 2026-01-01: 250 observaciones
   por activo y moneda USD en los tres.
 - Banco Mundial: PIB nominal de España, 2020–2024, con 5 observaciones.

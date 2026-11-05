@@ -1,14 +1,65 @@
 """Pruebas de interoperabilidad entre extracción y cartera."""
 
+from io import BytesIO
+import json
 import unittest
 from unittest.mock import PropertyMock, patch
 
 import pandas as pd
 
-from miax_toolkit import Cartera, descargar_serie, descargar_series
+from miax_toolkit import (
+    Cartera,
+    SerieIndicador,
+    descargar_indicador,
+    descargar_serie,
+    descargar_series,
+)
 
 
 class TestIntegracionBasica(unittest.TestCase):
+    @patch("miax_toolkit.macroeconomia.urlopen")
+    @patch("miax_toolkit.extractores.yf.Ticker")
+    def test_contrato_comun_de_las_dos_fuentes(self, ticker, abrir):
+        fechas = pd.date_range("2025-01-02", periods=3, tz="America/New_York")
+        ticker.return_value.history.return_value = pd.DataFrame(
+            {"Close": [90, 100, 110]}, index=fechas
+        )
+        ticker.return_value.get_history_metadata.return_value = {"currency": "USD"}
+        abrir.return_value = BytesIO(json.dumps([
+            {}, [{"date": "2024", "value": 25}, {"date": "2023", "value": 20}],
+        ]).encode("utf-8"))
+
+        precios = descargar_series(
+            ["AAPL", "^GSPC"], "2025-01-01", "2025-02-01",
+            tipos={"^GSPC": "indice"},
+        )
+        pib = descargar_indicador("ESP", "NY.GDP.MKTP.CD", 2023, 2024)
+
+        # El mismo consumidor sirve para acciones, índices e indicadores.
+        for serie in [*precios.values(), pib]:
+            with self.subTest(serie=serie.valores.name):
+                self.assertIsInstance(serie.valores, pd.Series)
+                self.assertEqual(serie.valores.dtype, "float64")
+                self.assertIsInstance(serie.valores.index, pd.DatetimeIndex)
+                self.assertIsNone(serie.valores.index.tz)
+                self.assertTrue(serie.valores.index.is_monotonic_increasing)
+                self.assertTrue(serie.fuente)
+                self.assertIn(serie.frecuencia, ("diaria", "anual"))
+        self.assertEqual(precios["AAPL"].frecuencia, "diaria")
+        self.assertEqual(pib.frecuencia, "anual")
+        self.assertEqual(precios["AAPL"].valores.tolist(), [90.0, 100.0, 110.0])
+        self.assertEqual(pib.valores.tolist(), [20.0, 25.0])
+        pd.testing.assert_series_equal(precios["AAPL"].valores, precios["AAPL"].precios)
+
+    def test_indicador_no_es_un_activo_de_cartera(self):
+        pib = SerieIndicador(
+            "PIB", "ESP", pd.Series(
+                [20.0, 25.0], index=pd.to_datetime(["2023-12-31", "2024-12-31"])
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "SeriePrecios"):
+            Cartera("Incorrecta", [pib], {"PIB": 1.0})
+
     @patch("miax_toolkit.extractores.yf.Ticker")
     def test_extractor_y_cartera(self, ticker):
         fechas = pd.bdate_range("2025-01-02", periods=60)
