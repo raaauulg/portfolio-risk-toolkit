@@ -30,8 +30,9 @@ def descargar_serie(
     if fecha_inicio >= fecha_fin:
         raise ValueError("La fecha de inicio debe ser anterior a la fecha final.")
 
+    instrumento = yf.Ticker(ticker)
     try:
-        datos = yf.Ticker(ticker).history(
+        datos = instrumento.history(
             start=inicio, end=fin, interval="1d", auto_adjust=True
         )
     except Exception as error:
@@ -47,6 +48,18 @@ def descargar_serie(
         precios.index = precios.index.tz_localize(None)
     precios.index = precios.index.normalize()
     precios = precios.sort_index()
+
+    # Si no se indica la moneda, intenta conocerla por la propia fuente.
+    # La ausencia de metadatos no debe impedir recuperar los precios.
+    if moneda is None:
+        try:
+            metadatos = instrumento.get_history_metadata()
+            if isinstance(metadatos, dict):
+                valor = metadatos.get("currency")
+                if isinstance(valor, str) and valor.strip():
+                    moneda = valor.strip().upper()
+        except Exception:
+            moneda = None
 
     return SeriePrecios(
         ticker=ticker,

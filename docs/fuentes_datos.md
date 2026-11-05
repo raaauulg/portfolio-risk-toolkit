@@ -35,9 +35,9 @@ print(pib.valores)
 
 - La fecha final de Yahoo Finance es exclusiva.
 - Los cierres descargados se ajustan mediante `auto_adjust=True`.
-- Las monedas de los activos se introducen opcionalmente de forma explícita;
-  no se convierten automáticamente entre divisas. Si no se conocen, no se
-  debe asumir que todos los precios están en la misma moneda.
+- Las monedas pueden proporcionarse expresamente. Si no se indican, se intenta
+  recuperarlas de los metadatos de Yahoo Finance. Si no están disponibles,
+  la moneda queda sin confirmar. No se realiza conversión entre divisas.
 - Una descarga que falle detiene el lote con un error; no se omiten activos
   silenciosamente.
 - Las APIs externas requieren conexión, y pueden imponer límites o cambiar

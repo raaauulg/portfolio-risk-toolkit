@@ -19,7 +19,8 @@ class SeriePrecios:
     desviacion_tipica: float = field(init=False)
 
     def __post_init__(self) -> None:
-        if not self.ticker.strip() or not self.fuente.strip():
+        if (not isinstance(self.ticker, str) or not self.ticker.strip()
+                or not isinstance(self.fuente, str) or not self.fuente.strip()):
             raise ValueError("Ticker y fuente no pueden estar vacíos.")
         if not isinstance(self.precios, pd.Series) or self.precios.empty:
             raise ValueError("Los precios deben ser una serie de pandas no vacía.")
