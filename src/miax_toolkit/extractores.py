@@ -1,4 +1,4 @@
-"""Descarga de precios históricos desde Yahoo Finance (apartado 4.2)."""
+"""Extracción de precios bursátiles con Yahoo Finance (apartado 4.2)."""
 
 from datetime import date
 
@@ -15,10 +15,9 @@ def descargar_serie(
     tipo_activo: str = "accion",
     moneda: str | None = None,
 ) -> SeriePrecios:
-    """Descarga cierres diarios ajustados y devuelve una SeriePrecios.
+    """Descarga cierres diarios ajustados y crea una SeriePrecios.
 
-    Las fechas tienen formato AAAA-MM-DD y la fecha final es exclusiva.
-    Para un índice, se puede usar ticker='^GSPC', tipo_activo='indice'.
+    Las fechas tienen formato AAAA-MM-DD; fin es exclusivo.
     """
     if not isinstance(ticker, str) or not ticker.strip():
         raise ValueError("El ticker debe ser un texto no vacío.")
@@ -33,10 +32,7 @@ def descargar_serie(
 
     try:
         datos = yf.Ticker(ticker).history(
-            start=inicio,
-            end=fin,
-            interval="1d",
-            auto_adjust=True,
+            start=inicio, end=fin, interval="1d", auto_adjust=True
         )
     except Exception as error:
         raise RuntimeError(f"No se pudo descargar {ticker} desde Yahoo Finance.") from error
@@ -59,3 +55,38 @@ def descargar_serie(
         tipo_activo=tipo_activo,
         moneda=moneda,
     )
+
+
+def descargar_series(
+    tickers: list[str],
+    inicio: str,
+    fin: str,
+    tipos: dict[str, str] | None = None,
+    monedas: dict[str, str] | None = None,
+) -> dict[str, SeriePrecios]:
+    """Descarga un lote de activos y devuelve {ticker: SeriePrecios}.
+
+    Los símbolos de los diccionarios opcionales se escriben en mayúsculas.
+    Se detiene con un error si alguno de los activos no puede descargarse;
+    no devuelve una cartera incompleta sin avisar.
+    """
+    if not isinstance(tickers, list) or not tickers:
+        raise ValueError("Debes facilitar una lista no vacía de tickers.")
+    if any(not isinstance(ticker, str) or not ticker.strip() for ticker in tickers):
+        raise ValueError("Todos los tickers deben ser textos no vacíos.")
+    simbolos = [ticker.strip().upper() for ticker in tickers]
+    if len(simbolos) != len(set(simbolos)):
+        raise ValueError("La lista contiene tickers duplicados.")
+
+    tipos = tipos or {}
+    monedas = monedas or {}
+    resultado: dict[str, SeriePrecios] = {}
+    for ticker in simbolos:
+        resultado[ticker] = descargar_serie(
+            ticker=ticker,
+            inicio=inicio,
+            fin=fin,
+            tipo_activo=tipos.get(ticker, "accion"),
+            moneda=monedas.get(ticker),
+        )
+    return resultado

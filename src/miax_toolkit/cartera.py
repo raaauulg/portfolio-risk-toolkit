@@ -45,3 +45,8 @@ class Cartera:
     def obtener_pesos(self) -> dict[str, float]:
         """Devuelve las ponderaciones de los activos."""
         return self.pesos.copy()
+
+    def obtener_monedas(self) -> dict[str, str] | None:
+        """Devuelve las monedas conocidas, o None si no hay información."""
+        conocidas = {serie.ticker: serie.moneda for serie in self.series if serie.moneda}
+        return conocidas or None
