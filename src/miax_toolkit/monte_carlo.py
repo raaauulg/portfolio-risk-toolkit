@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .limpieza2 import validar_pesos
+from .limpieza import validar_pesos
 
 DIAS_POR_ANIO = 252
 
