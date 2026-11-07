@@ -192,7 +192,8 @@ en `simular_cartera()` (módulo `monte_carlo.py`). El resumen de limpieza queda 
 - Con shocks t de Student el valor esperado teórico del precio no es finito, por
   lo que la media de los escenarios es inestable; la mediana (P50) y los
   percentiles son las medidas fiables.
-- No se comprueba que los activos estén en la misma moneda.
+- No se convierten divisas: si la cartera mezcla monedas, `monte_carlo()` no
+  falla, pero añade un aviso en `resultado.parametros["limpieza"]`.
 
 ## Organización y estado
 

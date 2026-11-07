@@ -124,6 +124,33 @@ def test_calendarios_distintos_se_alinean_y_simulan():
     assert any("Alineación" in linea for linea in resultado.parametros["limpieza"])
 
 
+# Divisas
+
+def _avisos_divisas(resultado: SimulationResult) -> list[str]:
+    return [linea for linea in resultado.parametros["limpieza"] if "mezcla divisas" in linea]
+
+
+def test_aviso_si_la_cartera_mezcla_divisas():
+    fechas = pd.bdate_range("2024-01-01", periods=100)
+    usd = _serie("AAPL", fechas, 1)  # moneda="USD"
+    eur = SeriePrecios("SAN.MC", _serie("X", fechas, 2).precios, fuente="sintetica", moneda="EUR")
+    cartera = Cartera("Mixta", [usd, eur], {"AAPL": 0.5, "SAN.MC": 0.5})
+
+    resultado = cartera.monte_carlo(n_sims=50, horizonte=5)
+
+    avisos = _avisos_divisas(resultado)
+    assert len(avisos) == 1
+    assert avisos[0].startswith("AVISO: la cartera mezcla divisas")
+    assert "AAPL: USD" in avisos[0] and "SAN.MC: EUR" in avisos[0]
+    assert "pueden estar sesgadas" in avisos[0]
+
+
+def test_sin_aviso_si_hay_una_sola_divisa(cartera):
+    resultado = cartera.monte_carlo(n_sims=50, horizonte=5)  # las tres en USD
+
+    assert _avisos_divisas(resultado) == []
+
+
 # Errores
 
 def test_nu_menor_o_igual_que_2_da_error(cartera):

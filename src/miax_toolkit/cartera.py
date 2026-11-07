@@ -73,6 +73,16 @@ class Cartera:
         min_observaciones: fechas comunes mínimas para estimar los parámetros.
         """
         tabla, resumen = alinear_precios(self.obtener_precios())
+
+        # Solo se avisa: convertir divisas exigiría tipos de cambio históricos.
+        monedas = self.obtener_monedas() or {}
+        if len(set(monedas.values())) > 1:
+            detalle = ", ".join(f"{ticker}: {moneda}" for ticker, moneda in monedas.items())
+            resumen.append(
+                f"AVISO: la cartera mezcla divisas ({detalle}) y no se convierten; "
+                "rentabilidades y correlaciones pueden estar sesgadas."
+            )
+
         if len(tabla) < min_observaciones:
             raise ValueError(
                 f"La cartera '{self.nombre}' solo tiene {len(tabla)} fechas comunes "
