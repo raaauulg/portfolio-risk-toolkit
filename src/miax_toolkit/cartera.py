@@ -5,7 +5,9 @@ from math import isclose, isfinite
 
 import pandas as pd
 
+from .limpieza import alinear_precios
 from .modelos import SeriePrecios
+from .monte_carlo import SimulationResult, simular_cartera
 
 
 @dataclass
@@ -50,3 +52,37 @@ class Cartera:
         """Devuelve las monedas conocidas, o None si no hay información."""
         conocidas = {serie.ticker: serie.moneda for serie in self.series if serie.moneda}
         return conocidas or None
+
+    def monte_carlo(
+        self,
+        n_sims: int = 10_000,
+        horizonte: int = 252,
+        retorno=None,
+        volatilidad=None,
+        nu: float = 5,
+        v0: float = 100.0,
+        semilla: int | None = 42,
+        min_observaciones: int = 30,
+    ) -> SimulationResult:
+        """Simula la cartera con Monte Carlo (apartado 4.4).
+
+        Fachada: la cartera solo prepara los datos (limpia y alinea sus precios)
+        y delega la matemática en monte_carlo.simular_cartera. Parámetros como en
+        simular_cartera: retorno y volatilidad anuales (None = histórico), horizonte
+        en días de mercado, v0 = valor inicial de la cartera.
+        min_observaciones: fechas comunes mínimas para estimar los parámetros.
+        """
+        tabla, resumen = alinear_precios(self.obtener_precios())
+        if len(tabla) < min_observaciones:
+            raise ValueError(
+                f"La cartera '{self.nombre}' solo tiene {len(tabla)} fechas comunes "
+                f"tras limpiar y alinear; se necesitan al menos {min_observaciones} "
+                "para estimar retorno, volatilidad y correlación."
+            )
+        resultado = simular_cartera(
+            tabla, self.obtener_pesos(), n_sims=n_sims, horizonte=horizonte,
+            retorno=retorno, volatilidad=volatilidad, nu=nu, v0=v0,
+            semilla=semilla, nombre=self.nombre,
+        )
+        resultado.parametros["limpieza"] = resumen
+        return resultado

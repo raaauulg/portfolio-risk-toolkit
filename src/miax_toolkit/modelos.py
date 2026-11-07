@@ -46,3 +46,17 @@ class SeriePrecios:
         self.precios.name = self.ticker
         self.media = float(validos.mean())
         self.desviacion_tipica = float(validos.std(ddof=1))
+
+    def monte_carlo(self, **opciones):
+        """Simula este activo con Monte Carlo (apartado 4.4).
+
+        Delega en monte_carlo.simular_activo, que por defecto parte del último
+        precio. Acepta las mismas opciones (n_sims, horizonte, retorno,
+        volatilidad, nu, v0, semilla). Devuelve un SimulationResult.
+        """
+        # Import local: el modelo no depende del motor al importarse el módulo.
+        from .monte_carlo import simular_activo
+
+        # SeriePrecios admite NaN sueltos; sin quitarlos, un último precio NaN
+        # daría un v0 NaN y todas las trayectorias serían NaN sin avisar.
+        return simular_activo(self.precios.dropna(), **opciones)
