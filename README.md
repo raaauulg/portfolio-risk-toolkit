@@ -129,15 +129,27 @@ indicada expresamente tiene prioridad. No se convierten divisas.
 ## Organización y estado
 
 - `src/miax_toolkit/`: paquete Python.
-- `tests/`: pruebas automáticas.
+  - `extractores.py` y `macroeconomia.py`: ingesta (Yahoo Finance y Banco Mundial).
+  - `modelos.py` y `cartera.py`: `SeriePrecios` y `Cartera` (apartado 4.3).
+  - `limpieza.py`: `limpiar_precios`, `alinear_precios` y `validar_pesos` (apartado 4.5).
+  - `monte_carlo.py`: `estimar_parametros`, `simular_cartera`, `simular_activo`
+    y `SimulationResult` con su método `plot()` (apartado 4.4).
+- `tests/`: pruebas automáticas (`test_integracion_modulos.py` comprueba que
+  modelos, limpieza y Monte Carlo encajan entre sí).
 - `ejemplos/`: demostración reproducible.
 - `docs/fuentes_datos.md`: descripción de fuentes y limitaciones.
 - `docs/guia_bloques_4_1_4_3.md`: requisitos, demostración y explicación de esta parte.
 - `docs/revision_integracion.md`: comprobación de la interfaz con `monte-carlo`
   y puntos pendientes para una futura integración.
 
-Los métodos de Monte Carlo, limpieza y reportes se desarrollan en otra rama
-y todavía no están integrados.
+Estado (rama `trabajo-raul`): el motor de Monte Carlo y la limpieza de la rama
+`monte-carlo` ya están integrados y se exportan desde `miax_toolkit`.
+Pendiente:
+
+- `Cartera.monte_carlo()` y `SeriePrecios.monte_carlo()` como métodos directos
+  (de momento: `alinear_precios()` y después `simular_cartera()`).
+- `report()` y `plots_report()` (apartado 4.5), a cargo de Amalia.
+- Diagramas de arquitectura (apartado 4.6).
 
 ## Verificación del 5 de noviembre de 2026
 
