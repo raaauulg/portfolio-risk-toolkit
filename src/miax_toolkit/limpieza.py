@@ -246,3 +246,6 @@ def validar_pesos(pesos: pd.Series | Mapping[str, float], activos: pd.Index) -> 
     if not np.isclose(serie.sum(), 1.0, atol=1e-6):
         raise ErrorValidacion(f"Los pesos deben sumar 1 y suman {serie.sum():.6f}.")
     return serie.reindex(activos)
+
+
+
