@@ -126,6 +126,74 @@ indicada expresamente tiene prioridad. No se convierten divisas.
   Expone `obtener_precios()`, `obtener_pesos()` y
   `obtener_monedas()` para la futura integración.
 
+## Simulación de Monte Carlo (apartado 4.4)
+
+La simulación es un método directo de la cartera y de cada serie:
+
+```python
+from miax_toolkit import Cartera
+
+cartera = Cartera("Mi cartera", series, {"AAPL": 0.6, "MSFT": 0.4})
+
+# Parámetros históricos por defecto; todo es configurable.
+resultado = cartera.monte_carlo(
+    n_sims=10_000,     # número de escenarios
+    horizonte=252,     # días de mercado (252 = un año)
+    retorno=None,      # anual, logarítmico. None = histórico; 0.06 = 6 % para todos;
+                       # {"AAPL": 0.10} = solo ese activo
+    volatilidad=None,  # anual, mismas opciones que retorno
+    nu=5,              # grados de libertad de la t de Student (> 2)
+    v0=100.0,          # valor inicial de la cartera
+    semilla=42,        # reproducibilidad
+)
+print(resultado.resumen())         # P5, P50, P95, media y probabilidad de pérdida
+print(resultado.interpretacion())  # lo mismo, explicado en texto
+resultado.plot()                   # trayectorias y distribución del valor final
+
+# Un solo activo: parte de su último precio
+resultado_activo = series[0].monte_carlo(horizonte=126, retorno=0.06, volatilidad=0.30)
+```
+
+Demostración sin conexión (guarda el gráfico en `docs/img/monte_carlo_cartera.png`):
+
+```powershell
+.\.venv\Scripts\python.exe ejemplos/demo_monte_carlo.py
+```
+
+![Monte Carlo de la cartera de la demostración](docs/img/monte_carlo_cartera.png)
+
+**Diseño.** `Cartera.monte_carlo()` es una fachada: limpia y alinea los precios
+con `alinear_precios()` (solo fechas en que cotizan todos los activos), exige
+al menos `min_observaciones` fechas comunes (30 por defecto) y delega el cálculo
+en `simular_cartera()` (módulo `monte_carlo.py`). El resumen de limpieza queda en
+`resultado.parametros["limpieza"]`.
+
+**Supuestos del modelo.**
+
+- Rendimientos logarítmicos diarios `r = mu/252 + sigma/sqrt(252) * Z`, con `Z` una
+  t de Student multivariante estandarizada (media 0, varianza 1). Las colas son
+  más gruesas que en la normal; cuanto menor es `nu`, más gruesas.
+- Correlación entre activos: Cholesky de la matriz de correlación histórica y un
+  mismo factor chi-cuadrado para todos los activos en cada día, de modo que los
+  días extremos lo son a la vez para toda la cartera.
+- Comprar y mantener: se invierte `v0` según los pesos el día 0 y no se rebalancea;
+  los pesos efectivos derivan con los precios.
+- Parámetros constantes durante todo el horizonte, estimados por defecto con el
+  histórico (media y desviación típica muestral, `ddof=1`, anualizadas con 252 días).
+
+**Limitaciones.**
+
+- Son escenarios bajo esos supuestos, no predicciones.
+- El retorno histórico es muy ruidoso: con dos años de datos, el error típico de
+  la media anual es del orden de `sigma / sqrt(2)`. Conviene fijar `retorno` a
+  mano con un supuesto razonable.
+- Volatilidad y correlación constantes (sin clústeres de volatilidad ni
+  correlaciones que suben en las crisis) y colas simétricas.
+- Con shocks t de Student el valor esperado teórico del precio no es finito, por
+  lo que la media de los escenarios es inestable; la mediana (P50) y los
+  percentiles son las medidas fiables.
+- No se comprueba que los activos estén en la misma moneda.
+
 ## Organización y estado
 
 - `src/miax_toolkit/`: paquete Python.
@@ -143,11 +211,10 @@ indicada expresamente tiene prioridad. No se convierten divisas.
   y puntos pendientes para una futura integración.
 
 Estado (rama `trabajo-raul`): el motor de Monte Carlo y la limpieza de la rama
-`monte-carlo` ya están integrados y se exportan desde `miax_toolkit`.
+`monte-carlo` ya están integrados y se exportan desde `miax_toolkit`, y
+`Cartera.monte_carlo()` y `SeriePrecios.monte_carlo()` están disponibles.
 Pendiente:
 
-- `Cartera.monte_carlo()` y `SeriePrecios.monte_carlo()` como métodos directos
-  (de momento: `alinear_precios()` y después `simular_cartera()`).
 - `report()` y `plots_report()` (apartado 4.5), a cargo de Amalia.
 - Diagramas de arquitectura (apartado 4.6).
 
