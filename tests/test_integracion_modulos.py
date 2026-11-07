@@ -1,12 +1,12 @@
-"""Pruebas de integraciÃ³n entre los mÃ³dulos de Javi (modelos, cartera) y de
-Amalia (limpieza, monte_carlo). Datos sintÃ©ticos, semilla fija y sin Internet.
+"""Pruebas de integración entre los módulos de Javi (modelos, cartera) y de
+Amalia (limpieza, monte_carlo). Datos sintéticos, semilla fija y sin Internet.
 
 La mediana del motor y Cartera.monte_carlo() se prueban en la Fase 2.
 """
 
 import matplotlib
 
-matplotlib.use("Agg")  # backend sin ventana: los tests no abren grÃ¡ficos
+matplotlib.use("Agg")  # backend sin ventana: los tests no abren gráficos
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,7 +33,7 @@ API_PUBLICA = [
 
 
 def _precios_sinteticos(fechas: pd.DatetimeIndex, semilla: int, nombre: str) -> pd.Series:
-    """Paseo aleatorio geomÃ©trico: rendimientos log diarios ~ N(0.0003, 0.01)."""
+    """Paseo aleatorio geométrico: rendimientos log diarios ~ N(0.0003, 0.01)."""
     rng = np.random.default_rng(semilla)
     rendimientos = rng.normal(0.0003, 0.01, len(fechas))
     return pd.Series(100 * np.exp(np.cumsum(rendimientos)), index=fechas, name=nombre)
@@ -41,7 +41,7 @@ def _precios_sinteticos(fechas: pd.DatetimeIndex, semilla: int, nombre: str) -> 
 
 @pytest.fixture
 def precios_dos_calendarios() -> dict[str, pd.Series]:
-    """Dos activos con calendarios distintos: uno cotiza todos los dÃ­as hÃ¡biles,
+    """Dos activos con calendarios distintos: uno cotiza todos los días hábiles,
     el otro no cotiza los lunes (simula festivos de otra bolsa)."""
     habiles = pd.bdate_range("2024-01-01", periods=120)
     sin_lunes = habiles[habiles.day_of_week != 0]
@@ -66,7 +66,7 @@ def test_alinear_precios_conserva_solo_fechas_comunes(precios_dos_calendarios):
     assert list(tabla.columns) == ["AAA", "BBB"]
     assert tabla.index.equals(comunes)
     assert not tabla.isna().any().any()
-    assert resumen  # al menos el recuento de observaciones y la alineaciÃ³n
+    assert resumen  # al menos el recuento de observaciones y la alineación
 
 
 def test_simular_cartera_forma_valor_inicial_y_semilla(precios_dos_calendarios):
@@ -88,7 +88,7 @@ def test_cartera_de_javi_alimenta_el_motor(precios_dos_calendarios):
         SeriePrecios(ticker, precios, fuente="sintetica", moneda="USD")
         for ticker, precios in precios_dos_calendarios.items()
     ]
-    cartera = Cartera("SintÃ©tica", series, {"AAA": 0.5, "BBB": 0.5})
+    cartera = Cartera("Sintética", series, {"AAA": 0.5, "BBB": 0.5})
 
     tabla, _ = alinear_precios(cartera.obtener_precios())
     resultado = simular_cartera(
@@ -96,7 +96,7 @@ def test_cartera_de_javi_alimenta_el_motor(precios_dos_calendarios):
         nombre=cartera.nombre,
     )
 
-    assert resultado.nombre == "SintÃ©tica"
+    assert resultado.nombre == "Sintética"
     assert resultado.trayectorias.shape == (100, 21)
     assert np.isfinite(resultado.trayectorias).all()
     assert resultado.parametros["pesos"] == pytest.approx({"AAA": 0.5, "BBB": 0.5})
@@ -110,6 +110,6 @@ def test_plot_no_falla_con_backend_agg(precios_dos_calendarios):
 
     figura = resultado.plot(mostrar=False)
     try:
-        assert len(figura.axes) == 2  # trayectorias + distribuciÃ³n del valor final
+        assert len(figura.axes) == 2  # trayectorias + distribución del valor final
     finally:
         plt.close(figura)
