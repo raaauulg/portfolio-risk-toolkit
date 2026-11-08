@@ -259,9 +259,17 @@ docs/
     arquitectura.svg
 ```
 
-El [diagrama UML y el flujo del sistema](docs/arquitectura.md) representan las
-clases, las dependencias y la separación de responsabilidades. Los ejemplos
-de este README y de `ejemplos/` permiten reproducir los seis bloques del taller.
+El diagrama UML muestra las clases, los módulos y sus dependencias. Las flechas
+discontinuas significan «usa, crea o delega en» y el rombo vacío, que una
+`Cartera` agrega una o más `SeriePrecios`:
+
+![Diagrama UML de clases y dependencias del toolkit](docs/arquitectura.svg)
+
+En [docs/arquitectura.md](docs/arquitectura.md) están la leyenda de la
+notación, la separación de responsabilidades y un **diagrama de secuencia** del
+flujo completo: descarga → `SeriePrecios` → `Cartera` → limpieza → Monte Carlo
+→ informe y gráficos. Los ejemplos de este README y de `ejemplos/` permiten
+reproducir los seis bloques del taller.
 
 ## Referencias
 
