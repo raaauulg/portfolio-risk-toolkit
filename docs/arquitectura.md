@@ -7,6 +7,20 @@ El rombo vacío representa la agregación de una o varias `SeriePrecios` en
 carteras. Las flechas discontinuas representan dependencias entre módulos o
 clases; las etiquetas indican creación, validación o delegación.
 
+Cómo leer la notación:
+
+| Elemento | Significado |
+| --- | --- |
+| Línea continua con rombo vacío | Agregación: el rombo está en el todo (`Cartera`); multiplicidades `1..*` (una cartera tiene una o más series) y `0..*` (una serie puede estar en cero o más carteras). |
+| Flecha discontinua con punta abierta | Dependencia UML: el origen usa, crea o delega en el destino. Todas corresponden a un `import` real, salvo dos: «crea» de `monte_carlo.py` a `SimulationResult` (la clase está en el mismo fichero) y «consulta opcional», en la que `reportes.py` solo lee el `SimulationResult` que recibe como argumento. |
+| `<<dataclass>>` | Clase de datos de Python (`@dataclass`). |
+| `<<módulo>>` | Fichero de Python con funciones, no una clase. Se dibuja como caja para mostrar sus dependencias. |
+| `+` / `-` | Miembro público / interno (prefijo `_` en Python). |
+| `nombre: tipo` | Tipo anotado en el código. `...` indica que se omiten parámetros opcionales. |
+
+No hay herencia entre clases: el diseño se basa en composición y delegación
+(véase «Decisiones de diseño» en el README).
+
 ## Separación de responsabilidades
 
 - Los adaptadores convierten respuestas externas en `SeriePrecios` o
@@ -109,3 +123,7 @@ regenerarlo con Graphviz (opcional, no necesario para ejecutar el toolkit):
 ```sh
 dot -Tsvg docs/arquitectura.dot -o docs/arquitectura.svg
 ```
+
+Sin Graphviz instalado, también puede generarse con Node.js mediante
+[`@viz-js/viz`](https://www.npmjs.com/package/@viz-js/viz), Graphviz compilado
+a WebAssembly. El SVG actual se generó así (Graphviz 16.1.0).
