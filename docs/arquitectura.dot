@@ -1,0 +1,28 @@
+digraph Toolkit {
+  graph [rankdir=TB, bgcolor="white", pad=0.3, nodesep=0.5, ranksep=0.9,
+         fontname="Arial", label="MIAX B1-T1 - Clases, dependencias y flujo", labelloc=t, fontsize=22];
+  node [shape=record, fontname="Arial", fontsize=12, style=filled, fillcolor="#edf4fa", color="#376485", margin="0.14,0.10"];
+  edge [fontname="Arial", fontsize=10, color="#536776", arrowsize=0.8];
+
+  Adaptadores [label="{\<\<modulos de ingesta\>\>\nAdaptadores|extractores.py: Yahoo\lmacroeconomia.py: Banco Mundial\lfuentes.py: FRED y BCE\l}", fillcolor="#f4f4ef"];
+  SeriePrecios [label="{\<\<dataclass\>\>\nSeriePrecios|+ ticker, precios, fuente\l+ tipo_activo, moneda, frecuencia\l+ unidad, ajuste\l+ media, desviacion_tipica\l+ valores: propiedad de precios\l|+ __post_init__(): estadisticos\l+ monte_carlo(): SimulationResult\l}"];
+  SerieIndicador [label="{\<\<dataclass\>\>\nSerieIndicador|+ indicador, pais, valores\l+ fuente, frecuencia, unidad\l|+ __post_init__(): validacion\l}"];
+  Cartera [label="{\<\<dataclass\>\>\nCartera|+ nombre, series, pesos\l|+ obtener_precios(): dict\l+ obtener_pesos(): dict\l+ obtener_monedas(): dict\l+ monte_carlo(): SimulationResult\l+ report(): str\l+ plots_report(): dict\l}"];
+  Limpieza [label="{\<\<modulo\>\>\nlimpieza.py|+ limpiar_precios()\l+ alinear_precios()\l+ validar_pesos()\l+ validar_tabla()\l}", fillcolor="#f4f4ef"];
+  Motor [label="{\<\<modulo\>\>\nmonte_carlo.py|+ estimar_parametros()\l+ simular_activo()\l+ simular_cartera()\l}", fillcolor="#f4f4ef"];
+  SimulationResult [label="{\<\<dataclass\>\>\nSimulationResult|+ nombre, trayectorias, parametros\l|+ percentiles(): DataFrame\l+ resumen(): dict\l+ interpretacion(): str\l+ plot(): Figure\l}"];
+  Reportes [label="{\<\<modulo\>\>\nreportes.py|+ generar_report(): Markdown\l+ generar_plots(): figuras\l}", fillcolor="#f4f4ef"];
+
+  Adaptadores -> SeriePrecios [style=dashed, label="crea"];
+  Adaptadores -> SerieIndicador [style=dashed, label="crea"];
+  SeriePrecios -> Cartera [dir=both, arrowtail=none, arrowhead=odiamond, taillabel="1..*", headlabel="0..*", label="agrega"];
+  Cartera -> Limpieza [style=dashed, label="prepara"];
+  Cartera -> Motor [style=dashed, label="delega"];
+  Cartera -> Reportes [style=dashed, label="delega"];
+  SeriePrecios -> Motor [style=dashed, label="simula activo"];
+  SeriePrecios -> Limpieza [style=dashed, label="prepara", constraint=false];
+  Motor -> Limpieza [style=dashed, label="valida"];
+  Reportes -> Limpieza [style=dashed, label="valida"];
+  Motor -> SimulationResult [style=dashed, label="crea"];
+  Reportes -> SimulationResult [style=dashed, label="consulta opcional"];
+}

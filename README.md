@@ -1,83 +1,279 @@
-
 # MIAX — Taller B1-T1
 
-Proyecto académico en Python para la extracción de datos financieros, el análisis bursátil y la gestión de carteras.
+Toolkit en Python para descargar y estandarizar datos financieros, modelar
+series y carteras, simular escenarios de Monte Carlo y generar informes.
+La ingesta está separada del modelado y del análisis: añadir un proveedor no
+requiere cambiar la cartera ni el motor de simulación.
 
-## Objetivo
+## Instalación
 
-Construir una herramienta organizada en módulos que permita obtener datos de distintas fuentes, representarlos mediante un formato común y utilizarlos para analizar series de precios y carteras de inversión.
+Se necesita **Python 3.12**, Git y acceso a este repositorio privado. Internet
+es necesario para instalar las dependencias y ejecutar las consultas reales;
+la demostración sintética funciona sin conexión una vez instalado el paquete.
+La combinación de dependencias comprobada figura en `pyproject.toml`.
 
-## Funcionalidades previstas para los apartados 4.2 y 4.3
+En Windows (PowerShell), desde la carpeta donde se quiera clonar el proyecto:
 
-- Descargar precios históricos de acciones e índices bursátiles.
-- Incorporar al menos una fuente o un tipo de datos adicional.
-- Obtener varias series a partir de una lista de activos.
-- Estandarizar los datos descargados para que puedan utilizarse de forma conjunta.
-- Representar las series de precios y las carteras mediante DataClasses.
-- Gestionar los activos de una cartera y sus ponderaciones.
-- Calcular automáticamente la media y la desviación típica al crear una serie de precios.
-
-## Requisitos
-
-- Python 3.12 o superior. La instalación se ha comprobado con Python 3.12.8.
-- Git.
-- Conexión a Internet para instalar las dependencias y consultar las fuentes de datos.
-- Acceso al repositorio de GitHub.
-
-Las dependencias principales están declaradas en `pyproject.toml`:
-
-- pandas 3.1.0.
-- yfinance 1.7.0.
-
-## Instalación en Windows
-
-Ejecutar los comandos desde una terminal que reconozca la instalación de Python mediante el comando `python`. Si se utiliza Anaconda, se puede abrir Anaconda Prompt.
-
-### 1. Descargar el repositorio
-
-```text
+```powershell
 git clone https://github.com/JaviHdezOlba/miax-b1-t1.git
 cd miax-b1-t1
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe ejemplos/demo_completa.py
 ```
 
-### 2. Crear un entorno virtual
+En macOS o Linux, crear el entorno con `python3.12 -m venv .venv` y usar
+`.venv/bin/python` en los tres últimos comandos. No hace falta activar el
+entorno. Si se modifica el código, reinstalar con `python -m pip install .`
+usando el intérprete de ese entorno; para desarrollo se puede instalar con
+`python -m pip install -e .`.
 
-Comprobar primero la versión de Python:
+## Ejemplos reproducibles
+
+| Ejemplo | Qué demuestra | Conexión |
+| --- | --- | --- |
+| `ejemplos/demo_completa.py` | DataClasses, estadísticos, cartera, limpieza, Monte Carlo individual y conjunto, informe y gráficos. Datos sintéticos identificados y semillas fijas. | No |
+| `ejemplos/demo_fuentes.py` | Yahoo, Banco Mundial, FRED y BCE; salidas comunes y análisis completo de AAPL/MSFT con S&P 500 como referencia. | Sí |
+
+```powershell
+.\.venv\Scripts\python.exe ejemplos/demo_fuentes.py
+```
+
+Cada ejemplo escribe `informe.md` y cinco imágenes (simulación, rendimiento,
+correlación, evolución y riesgo) en `resultados/demo` o `resultados/fuentes`.
+Puede cambiarse la carpeta con `--salida otra_carpeta`. Los resultados
+generados no se versionan. Los ejemplos guardan los gráficos sin abrir
+ventanas; en uso interactivo, `resultado.plot()` y `cartera.plots_report()`
+los muestran por pantalla.
+
+Las fechas de las consultas reales son fijas, pero los proveedores pueden
+revisar datos y su disponibilidad depende de la red. Un fallo de descarga
+produce un error explícito: nunca se sustituyen datos reales por sintéticos.
+
+## Fuentes y contrato común (4.2)
+
+| Fuente | Funciones | Datos y salida |
+| --- | --- | --- |
+| Yahoo Finance mediante `yfinance` | `descargar_serie`, `descargar_series` | Cierres diarios de acciones e índices → `SeriePrecios`. |
+| Banco Mundial, API de indicadores | `descargar_indicador` | Indicadores anuales por país → `SerieIndicador`. |
+| FRED, descarga pública CSV | `descargar_sp500_fred`, `descargar_indicador_fred` | S&P 500 → `SeriePrecios`; indicadores → `SerieIndicador`. |
+| BCE, API SDMX | `descargar_tipo_cambio_bce` | Tipo de referencia diario expresado en unidades de una moneda por 1 EUR → `SerieIndicador`. |
+
+Los cuatro proveedores ofrecen `valores` (una `pandas.Series` numérica con
+`DatetimeIndex` ordenado), `fuente`, `frecuencia` y `unidad`. Se conservan los
+metadatos específicos: ticker, moneda y ajuste en precios; indicador y país
+o área en indicadores. `SeriePrecios.valores` es una propiedad que accede a
+`precios`, sin duplicarlos.
+
+**Un mismo tipo de dato devuelve la misma clase, independientemente del
+proveedor.** Por ejemplo, el S&P 500 de Yahoo y FRED es `SeriePrecios`, con el
+identificador interno `^GSPC`. Los indicadores conservan sus unidades y
+frecuencias y no se introducen directamente en una cartera de precios.
+
+- Yahoo descarga cierres ajustados por dividendos y splits (`auto_adjust=True`).
+  En índices de precios, como S&P 500, no se está descargando un índice de
+  rentabilidad total con dividendos. El campo `ajuste` distingue ambos casos.
+- La moneda indicada al descargar tiene prioridad. Si no se indica, Yahoo
+  intenta obtenerla de sus metadatos y después de `fast_info`. Si no puede
+  conocerse, queda `None`: la serie puede consultarse, pero debe completarse
+  ese metadato antes de analizar una cartera. Indicar moneda no convierte precios.
+- `descargar_series` recibe una lista y procesa un lote secuencial. Rechaza
+  tickers repetidos y detiene el lote si falla un activo, sin devolver una
+  cartera incompleta inadvertidamente.
+- Yahoo, FRED y BCE usan fechas `AAAA-MM-DD`, con inicio inclusivo y fin
+  exclusivo. Banco Mundial recibe años y ambos extremos son inclusivos;
+  cada dato anual se representa el 31 de diciembre del año correspondiente.
+- El CSV de FRED no contiene metadatos suficientes: para indicadores se
+  proporcionan explícitamente país, frecuencia y unidad según su ficha.
+  Esta descarga pública no es la API FRED con clave. S&P 500 dispone en FRED
+  de una ventana móvil de diez años. Se devuelve el periodo realmente disponible.
+- Banco Mundial identifica el PIB `NY.GDP.MKTP.CD` como USD corrientes;
+  para otros indicadores se puede indicar `unidad`. En ausencia de información
+  se conserva `no especificada`, sin inventar unidades.
+- Los huecos de datos se omiten al extraer indicadores; no se interpolan,
+  convierten frecuencias ni rellenan artificialmente observaciones.
+
+```python
+from miax_toolkit import (
+    descargar_indicador, descargar_indicador_fred, descargar_tipo_cambio_bce,
+)
+
+pib = descargar_indicador("ESP", "NY.GDP.MKTP.CD", 2020, 2024)
+paro = descargar_indicador_fred(
+    "UNRATE", "2025-01-01", "2026-01-01",
+    pais="USA", frecuencia="mensual", unidad="%",
+)
+eurusd = descargar_tipo_cambio_bce("USD", "2025-01-01", "2025-02-01")
+for serie in (pib, paro, eurusd):
+    print(serie.fuente, serie.frecuencia, serie.unidad, serie.valores.head())
+```
+
+## Modelado y uso de la cartera (4.3–4.5)
+
+`SeriePrecios` es una DataClass que calcula automáticamente la media y la
+desviación típica muestral (`ddof=1`) de los precios válidos al instanciarla.
+Son estadísticas de **niveles de precios**, no de rentabilidades. Si se cambia
+la serie posteriormente, se debe crear un nuevo objeto para recalcularlas.
+
+`Cartera` es una DataClass que agrupa series y pesos por ticker. Comprueba que
+los activos sean únicos, que exista exactamente un peso por activo y que los
+pesos sean finitos, no negativos y sumen uno (tolerancia `1e-6`).
+
+Ejemplo completo con precios reales:
+
+```python
+from miax_toolkit import Cartera, descargar_series, descargar_sp500_fred
+
+datos = descargar_series(["AAPL", "MSFT"], "2025-01-01", "2026-01-01")
+cartera = Cartera("Acciones USA", list(datos.values()), {"AAPL": 0.6, "MSFT": 0.4})
+referencia = descargar_sp500_fred("2025-01-01", "2026-01-01")
+
+resultado = cartera.monte_carlo(
+    n_sims=2000, horizonte=252, retorno=0.06, volatilidad=None,
+    nu=5, v0=100.0, semilla=42,
+)
+print(resultado.interpretacion())
+resultado.plot()
+print(cartera.report(simulacion=resultado, benchmark=referencia.valores))
+cartera.plots_report(benchmark=referencia.valores)
+
+# Activo individual: parte de su último precio, salvo que se indique v0.
+individual = datos["AAPL"].monte_carlo(n_sims=1000, horizonte=126)
+# También: cartera.monte_carlo(activo="AAPL", n_sims=1000, horizonte=126).
+```
+
+### Inputs admitidos y limpieza
+
+Se elige una entrada restringida para evitar interpretaciones ambiguas:
+
+- El análisis trabaja con **precios diarios** positivos, finitos y fechas
+  únicas. No admite datos intradía, semanales o mensuales como si fueran diarios.
+- Se pueden construir series de precios con huecos, pero la limpieza elimina
+  observaciones inválidas antes de analizar. La serie inicial necesita al
+  menos dos valores numéricos finitos para sus estadísticas.
+- La cartera analizada requiere moneda conocida e idéntica para todos los
+  activos. No se admiten posiciones cortas ni se convierten divisas.
+- `limpiar_precios` acepta una `Series`: normaliza fechas, elimina `NaT`,
+  ordena, conserva el último registro en fechas duplicadas, convierte textos
+  numéricos con coma decimal y elimina valores ausentes, infinitos o no
+  positivos. Reconoce fechas `AAAA-MM-DD` y `DD-MM-AAAA` y separadores `/` o `.`.
+  Quita la zona horaria conservando la fecha local de la sesión. Avisa de
+  huecos abundantes y saltos grandes; no corrige posibles splits automáticamente.
+- `alinear_precios` recibe un diccionario de series o un DataFrame. Conserva
+  exclusivamente fechas con precio válido para todos los activos, sin rellenar
+  festivos. Devuelve la tabla y un diagnóstico de las observaciones descartadas.
+- Los informes requieren al menos tres fechas comunes. Monte Carlo exige 30
+  por defecto; `min_observaciones` permite cambiarlo, con mínimo de tres.
+  Este umbral es una decisión de diseño, no una garantía estadística. Los
+  informes avisan cuando hay menos de un año de historia.
+- Un benchmark se limpia y se cruza por fechas reales con la cartera; informe
+  y gráficos históricos se calculan sobre ese periodo común. Se requieren
+  al menos tres fechas coincidentes. No se rellena el benchmark con precios pasados.
+
+Las funciones de cálculo directo `simular_cartera` y `simular_activo` reciben
+precios ya limpios. Al no recibir los objetos con metadatos, quien las usa debe
+garantizar la moneda común y la frecuencia diaria. Los métodos de los objetos
+son la entrada recomendada porque preparan y validan los datos.
+
+### Monte Carlo: parámetros y supuestos
+
+`n_sims` controla los escenarios; `horizonte`, las sesiones; `v0`, el capital
+inicial; `semilla`, la reproducibilidad; y `nu > 2`, las colas de la t de Student.
+`retorno` y `volatilidad` son anuales: `None` los estima del histórico, un
+número los fija para todos los activos y un diccionario cambia activos concretos.
+Los parámetros deben ser finitos; los errores numéricos se rechazan expresamente.
+
+El modelo usa rendimientos logarítmicos diarios
+`r = retorno/252 + volatilidad/sqrt(252) * Z`, con shocks t multivariantes
+estandarizados de media cero y varianza uno. Después aplica `P(t+1)=P(t)*exp(r)`.
+El retorno es **logarítmico**, no una rentabilidad simple esperada. Se estima la
+correlación histórica y se generan shocks correlacionados. Una matriz con
+correlaciones perfectas se admite mediante su descomposición espectral.
+
+Un activo constante conserva volatilidad histórica cero. Si se le impone
+volatilidad positiva, se asume independiente de los demás: el histórico
+constante no permite estimar su correlación. La cartera sigue **comprar y
+mantener**, con pesos iniciales y sin rebalanceos.
+
+El resultado incluye trayectorias, P5/P50/P95, media muestral y probabilidad de
+terminar por debajo del capital inicial. Con shocks t exponenciados, la
+esperanza teórica del precio no es finita: **la media de escenarios es
+inestable; se interpretan principalmente mediana y percentiles**. El
+histograma muestra P1–P99 para facilitar su lectura y lo indica en el título;
+los percentiles y resúmenes utilizan todos los escenarios.
+
+Son escenarios bajo parámetros constantes, no predicciones. La estimación de
+retornos con poca historia es inestable. No se modelan costes, impuestos,
+rebalanceos ni variaciones futuras de volatilidad o correlación.
+
+### Informes y gráficos
+
+`cartera.report()` devuelve Markdown. Admite `secciones`, `tasa_libre` anual,
+`nivel_var`, `benchmark`, `simulacion`, `umbrales` y `ruta` para guardar el texto.
+Secciones: `resumen`, `composicion`, `activos`, `correlaciones`, `montecarlo`,
+`diagnostico` y `advertencias`. Por ejemplo:
+
+```python
+texto = cartera.report(secciones=("resumen", "advertencias"), nivel_var=0.99)
+```
+
+Incluye rentabilidad total y anualizada, volatilidad, Sharpe, Sortino, caída
+máxima, VaR/CVaR históricos y beta si hay referencia con variación suficiente.
+VaR/CVaR se expresan como pérdidas diarias: pueden ser negativos si incluso
+los peores rendimientos históricos fueron positivos. Las métricas no
+estimables aparecen como `n/d`. Los umbrales de advertencia son configurables,
+no reglas universales de inversión.
+
+La aportación al riesgo es una **aproximación con los pesos iniciales fijos**,
+distinta de la evolución de los pesos en comprar y mantener. La valoración
+histórica parte de base 100. Una simulación incluida en el informe mantiene
+su capital, supuestos y periodo de calibración; añadir un benchmark al informe
+no recalibra esa simulación.
+
+`cartera.plots_report()` permite seleccionar `graficos` entre `rendimiento`,
+`correlacion`, `evolucion` y `riesgo`; configurar `ventana_volatilidad`,
+`benchmark`, `mostrar` y `carpeta`. Devuelve un diccionario de figuras de
+Matplotlib. La ventana de volatilidad necesita suficientes sesiones; si no
+las hay, no se inventan observaciones para completarla.
+
+## Estructura y arquitectura (4.1 y 4.6)
 
 ```text
-python --version
+src/miax_toolkit/
+    __init__.py        API pública
+    extractores.py     Yahoo Finance y descarga por lotes
+    macroeconomia.py   SerieIndicador y Banco Mundial
+    fuentes.py         FRED y BCE
+    modelos.py         SeriePrecios
+    cartera.py         Cartera y métodos de análisis
+    limpieza.py        Limpieza, alineación y validación
+    monte_carlo.py     Motor y SimulationResult
+    reportes.py        Markdown y gráficos analíticos
+ejemplos/
+    demo_completa.py
+    demo_fuentes.py
+docs/
+    arquitectura.md
+    arquitectura.dot
+    arquitectura.svg
 ```
 
-Debe ser Python 3.12 o superior. Después, crear el entorno:
+El [diagrama UML y el flujo del sistema](docs/arquitectura.md) representan las
+clases, las dependencias y la separación de responsabilidades. Los ejemplos
+de este README y de `ejemplos/` permiten reproducir los seis bloques del taller.
 
-```text
-python -m venv .venv
-```
+## Referencias
 
-### 3. Instalar el paquete y sus dependencias
+- [yfinance: consulta de históricos](https://ranaroussi.github.io/yfinance/reference/api/yfinance.Ticker.history.html).
+- [Banco Mundial: API de indicadores](https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation).
+- [FRED: descarga de datos](https://fred.stlouisfed.org/help/data/downloading/using-the-download-data-link/),
+  [ficha de UNRATE](https://fred.stlouisfed.org/series/UNRATE) y
+  [ficha de SP500](https://fred.stlouisfed.org/series/SP500).
+- [BCE: ejemplos de la API SDMX](https://data.ecb.europa.eu/help/api/data-examples).
 
-Desde la carpeta principal del proyecto:
-
-```text
-.\.venv\Scripts\python.exe -m pip install -e .
-```
-
-La opción `-e` instala el proyecto en modo editable, lo que permite seguir modificando el código de `src` durante el desarrollo.
-
-### 4. Comprobar la instalación
-
-```text
-.\.venv\Scripts\python.exe -c "import miax_toolkit, pandas, yfinance; print('Instalación correcta')"
-```
-
-Si los paquetes se cargan correctamente, aparecerá:
-
-```text
-Instalación correcta
-```
-
-## Estado del proyecto
-
-En desarrollo. Se han preparado la estructura del paquete, el entorno de trabajo y la configuración de instalación.
-
-Las funcionalidades de descarga de datos y modelado de series y carteras se implementarán progresivamente. Sus ejemplos de uso se incorporarán a este README.
+Se aplican las condiciones de cada proveedor. El repositorio contiene los
+adaptadores y ejemplos, no copias de sus históricos. El diseño de la ingesta
+y la normalización toma como referencia los materiales de clase
+`01_DescargaDeDatos`, `01_DescargaDeDatosV2`, `clase_market_signal_ALUMNOS`
+y `01_Fuentes_Datos_Econ_Financieros`.
