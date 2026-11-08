@@ -16,6 +16,8 @@ class SeriePrecios:
     tipo_activo: str = "accion"
     moneda: str | None = None
     frecuencia: str = "diaria"
+    unidad: str | None = None
+    ajuste: str = "no_especificado"
     media: float = field(init=False)
     desviacion_tipica: float = field(init=False)
 
@@ -43,6 +45,9 @@ class SeriePrecios:
             raise ValueError("Se necesitan al menos dos precios válidos y finitos.")
 
         self.precios = self.precios.astype(float).copy()
+        self.moneda = self.moneda.strip().upper() if isinstance(self.moneda, str) and self.moneda.strip() else None
+        if self.unidad is None:
+            self.unidad = "puntos de indice" if self.tipo_activo == "indice" else (self.moneda or "moneda desconocida")
         self.precios.name = self.ticker
         self.media = float(validos.mean())
         self.desviacion_tipica = float(validos.std(ddof=1))
@@ -56,7 +61,11 @@ class SeriePrecios:
         """
         # Import local: el modelo no depende del motor al importarse el módulo.
         from .monte_carlo import simular_activo
+        from .limpieza import limpiar_precios
 
-        # SeriePrecios admite NaN sueltos; sin quitarlos, un último precio NaN
-        # daría un v0 NaN y todas las trayectorias serían NaN sin avisar.
-        return simular_activo(self.precios.dropna(), **opciones)
+        if self.frecuencia != "diaria":
+            raise ValueError("Monte Carlo requiere precios de frecuencia diaria.")
+        precios, diagnostico = limpiar_precios(self.precios, nombre=self.ticker)
+        resultado = simular_activo(precios, **opciones)
+        resultado.parametros["limpieza"] = diagnostico
+        return resultado

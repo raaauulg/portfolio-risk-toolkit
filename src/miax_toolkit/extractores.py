@@ -50,7 +50,11 @@ def descargar_serie(
     if precios.index.tz is not None:
         precios.index = precios.index.tz_localize(None)
     precios.index = precios.index.normalize()
-    precios = precios.sort_index()
+    precios = precios[precios.index.notna()].dropna().sort_index()
+    if precios.index.has_duplicates:
+        raise ValueError(f"Yahoo Finance devolvió fechas duplicadas para {ticker}.")
+    if (precios <= 0).any():
+        raise ValueError(f"Yahoo Finance devolvió precios no positivos para {ticker}.")
 
     # Si no se indica la moneda, intenta conocerla por la propia fuente.
     # La ausencia de metadatos no debe impedir recuperar los precios.
@@ -78,6 +82,7 @@ def descargar_serie(
         fuente="Yahoo Finance",
         tipo_activo=tipo_activo,
         moneda=moneda,
+        ajuste="indice_precios" if tipo_activo == "indice" else "dividendos_y_splits",
     )
 
 

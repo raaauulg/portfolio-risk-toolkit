@@ -2,6 +2,7 @@
 
 from .cartera import Cartera
 from .extractores import descargar_serie, descargar_series
+from .fuentes import descargar_indicador_fred, descargar_sp500_fred, descargar_tipo_cambio_bce
 from .limpieza import alinear_precios, limpiar_precios, validar_pesos
 from .macroeconomia import SerieIndicador, descargar_indicador
 from .modelos import SeriePrecios
@@ -16,6 +17,7 @@ from .monte_carlo import (
 __all__ = [
     # Ingesta
     "descargar_serie", "descargar_series", "descargar_indicador",
+    "descargar_indicador_fred", "descargar_sp500_fred", "descargar_tipo_cambio_bce",
     # Modelos
     "SeriePrecios", "SerieIndicador", "Cartera",
     # Preprocesado

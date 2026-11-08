@@ -4,19 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "miax-toolkit"
-version = "0.1.0"
+version = "1.0.0"
 description = "Herramientas de análisis financiero para el taller B1-T1 de MIAX"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pandas==3.1.0",
-    "numpy>=2.0",
+    "numpy==2.5.4",
     "yfinance==1.8.0",
     "matplotlib==3.11.2",
+    "requests==2.34.2",
 ]
-
-[project.optional-dependencies]
-dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

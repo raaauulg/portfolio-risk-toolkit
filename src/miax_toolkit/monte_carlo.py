@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .limpieza import validar_pesos
+from .limpieza import validar_pesos, validar_tabla
 
 DIAS_POR_ANIO = 252
 
@@ -29,6 +29,7 @@ DIAS_POR_ANIO = 252
 # 1. Estimar los parámetros con el histórico
 def estimar_parametros(precios: pd.DataFrame):
     """Devuelve (mu, sigma, correlacion) anuales a partir de rendimientos logarítmicos."""
+    validar_tabla(precios)
     rendimientos = np.log(precios).diff().dropna()
     mu = rendimientos.mean() * DIAS_POR_ANIO
     sigma = rendimientos.std() * np.sqrt(DIAS_POR_ANIO)
@@ -46,8 +47,16 @@ def _aplicar_supuesto(valor, historico: pd.Series, nombre: str) -> pd.Series:
         for activo, dato in valor.items():
             resultado[activo] = dato
     elif valor is not None:
+        if isinstance(valor, bool) or not isinstance(valor, (int, float, np.number)):
+            raise ValueError(f"{nombre} debe ser un número, un diccionario o None.")
         resultado[:] = valor
-    return resultado.astype(float)
+    try:
+        resultado = resultado.astype(float)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{nombre} debe contener números finitos.") from error
+    if not np.isfinite(resultado).all():
+        raise ValueError(f"{nombre} debe contener números finitos.")
+    return resultado
 
 
 # 2. Generar los shocks t de Student correlacionados
@@ -56,10 +65,11 @@ def _factor_cholesky(correlacion: pd.DataFrame) -> np.ndarray:
     try:
         return np.linalg.cholesky(correlacion.to_numpy())
     except np.linalg.LinAlgError:
-        raise ValueError(
-            "La matriz de correlación no es definida positiva. Suele pasar si hay "
-            "un activo duplicado o dos activos que se mueven exactamente igual."
-        ) from None
+        # Una correlación perfecta es válida: la matriz puede ser semidefinida.
+        valores, vectores = np.linalg.eigh(correlacion.to_numpy())
+        if valores.min() < -1e-10:
+            raise ValueError("La matriz de correlación no es semidefinida positiva.") from None
+        return vectores @ np.diag(np.sqrt(np.maximum(valores, 0)))
 
 
 def _shocks_t_student(generador, n_sims: int, factor: np.ndarray, nu: float) -> np.ndarray:
@@ -82,6 +92,18 @@ class SimulationResult:
     trayectorias: np.ndarray
     parametros: dict = field(default_factory=dict)
 
+    def __post_init__(self):
+        self.trayectorias = np.asarray(self.trayectorias, dtype=float)
+        self._validar()
+
+    def _validar(self):
+        datos = np.asarray(self.trayectorias)
+        if (datos.ndim != 2 or datos.shape[0] < 1 or datos.shape[1] < 2
+                or not np.isfinite(datos).all() or (datos <= 0).any()):
+            raise ValueError("Las trayectorias deben ser positivas y finitas, con al menos un escenario y dos fechas.")
+        if not np.allclose(datos[:, 0], datos[0, 0]):
+            raise ValueError("Todos los escenarios deben partir del mismo valor inicial.")
+
     @property
     def valor_inicial(self) -> float:
         return float(self.trayectorias[0, 0])
@@ -92,18 +114,20 @@ class SimulationResult:
 
     def percentiles(self, niveles=(5, 50, 95)) -> pd.DataFrame:
         """Percentiles del valor en cada día del horizonte."""
+        self._validar()
         datos = np.percentile(self.trayectorias, niveles, axis=0).T
         return pd.DataFrame(datos, columns=[f"P{n}" for n in niveles])
 
     def resumen(self) -> dict:
-        """P5, P50, P95, valor esperado y probabilidad de pérdida al final del horizonte."""
+        """Percentiles, media muestral y probabilidad de pérdida; no estima una esperanza finita."""
+        self._validar()
         finales = self.valores_finales
         return {
             "valor_inicial": self.valor_inicial,
             "P5": float(np.percentile(finales, 5)),
             "P50": float(np.percentile(finales, 50)),
             "P95": float(np.percentile(finales, 95)),
-            "valor_esperado": float(finales.mean()),
+            "media_escenarios": float((finales / len(finales)).sum()),
             "prob_perdida": float((finales < self.valor_inicial).mean()),
         }
 
@@ -116,7 +140,7 @@ class SimulationResult:
             f"- En el 5 % de los escenarios más desfavorables termina por debajo de {r['P5']:.2f} (P5).\n"
             f"- La mitad de los escenarios termina por encima de {r['P50']:.2f} (P50, mediana).\n"
             f"- Solo el 5 % de los escenarios supera {r['P95']:.2f} (P95).\n"
-            f"- Valor medio de los escenarios: {r['valor_esperado']:.2f}.\n"
+            f"- Media muestral de los escenarios: {r['media_escenarios']:.2f} (inestable con colas t).\n"
             f"- Probabilidad de terminar con pérdidas: {r['prob_perdida']:.1%}.\n"
             "Son escenarios posibles según los supuestos del modelo, no una predicción."
         )
@@ -153,7 +177,7 @@ class SimulationResult:
         eje2.axhline(r["P50"], color="black", linewidth=1.5, label=f"P50: {r['P50']:.1f}")
         eje2.axhline(r["P95"], color="#1baf7a", linewidth=1.5, label=f"P95: {r['P95']:.1f}")
         eje2.set_xlabel("Nº de escenarios")
-        eje2.set_title("Valor final", loc="left")
+        eje2.set_title("Valor final (P1–P99)", loc="left")
         eje2.legend(frameon=False, loc="upper right", fontsize=8)
 
         for eje in (eje1, eje2):
@@ -182,6 +206,7 @@ def simular_cartera(
     v0: float = 100.0,
     semilla: int | None = 42,
     nombre: str = "Cartera",
+    min_observaciones: int = 30,
 ) -> SimulationResult:
     """Simula una cartera de comprar y mantener con shocks t de Student correlacionados.
 
@@ -190,12 +215,15 @@ def simular_cartera(
     activos; un diccionario {activo: valor} = solo esos activos.
     nu: grados de libertad de la t de Student (mayor que 2; cuanto menor, más colas).
     """
-    if n_sims < 1 or horizonte < 1:
-        raise ValueError("n_sims y horizonte deben ser al menos 1.")
-    if nu <= 2:
+    if any(isinstance(x, bool) or not isinstance(x, (int, np.integer)) or x < 1 for x in (n_sims, horizonte)):
+        raise ValueError("n_sims y horizonte deben ser enteros de al menos 1.")
+    if not isinstance(nu, (int, float)) or not np.isfinite(nu) or nu <= 2:
         raise ValueError("nu debe ser mayor que 2 para que la varianza exista.")
-    if v0 <= 0:
-        raise ValueError("v0 debe ser positivo.")
+    if isinstance(v0, bool) or not isinstance(v0, (int, float)) or not np.isfinite(v0) or v0 <= 0:
+        raise ValueError("v0 debe ser positivo y finito.")
+    if semilla is not None and (isinstance(semilla, bool) or not isinstance(semilla, (int, np.integer)) or semilla < 0):
+        raise ValueError("semilla debe ser un entero no negativo o None.")
+    validar_tabla(precios, min_observaciones)
 
     w = validar_pesos(pesos, precios.columns).to_numpy()
     mu_hist, sigma_hist, correlacion = estimar_parametros(precios)
@@ -203,7 +231,12 @@ def simular_cartera(
     sigma = _aplicar_supuesto(volatilidad, sigma_hist, "volatilidad")
     if (sigma < 0).any():
         raise ValueError("La volatilidad no puede ser negativa.")
-    factor = _factor_cholesky(correlacion.fillna(0.0))
+    # Un activo constante tiene volatilidad cero. Si se impone una volatilidad,
+    # se asume independiente del resto, pues el histórico no permite correlacionarlo.
+    correlacion = correlacion.fillna(0.0)
+    for activo in correlacion.columns:
+        correlacion.loc[activo, activo] = 1.0
+    factor = _factor_cholesky(correlacion)
 
     mu_d = mu.to_numpy() / DIAS_POR_ANIO
     sigma_d = sigma.to_numpy() / np.sqrt(DIAS_POR_ANIO)
@@ -214,10 +247,14 @@ def simular_cartera(
     valor_activos = np.tile(w * v0, (n_sims, 1))  # dinero en cada activo, forma (n_sims, n_activos)
     trayectorias = np.empty((n_sims, horizonte + 1))
     trayectorias[:, 0] = v0
-    for dia in range(1, horizonte + 1):
-        z = _shocks_t_student(generador, n_sims, factor, nu)
-        valor_activos = valor_activos * np.exp(mu_d + sigma_d * z)
-        trayectorias[:, dia] = valor_activos.sum(axis=1)
+    try:
+        with np.errstate(over="raise", invalid="raise", under="raise"):
+            for dia in range(1, horizonte + 1):
+                z = _shocks_t_student(generador, n_sims, factor, nu)
+                valor_activos = valor_activos * np.exp(mu_d + sigma_d * z)
+                trayectorias[:, dia] = valor_activos.sum(axis=1)
+    except FloatingPointError as error:
+        raise ValueError("La simulación excede el rango numérico; revisa retorno, volatilidad, horizonte y nu.") from error
 
     parametros = {
         "n_sims": n_sims, "horizonte": horizonte, "nu": nu, "v0": v0, "semilla": semilla,

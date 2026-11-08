@@ -11,21 +11,37 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 import pandas as pd
+import numpy as np
 
 
 @dataclass
 class SerieIndicador:
-    """Serie anual de un indicador económico, con su procedencia."""
+    """Indicador numérico con fechas, procedencia, frecuencia y unidades."""
 
     indicador: str
     pais: str
     valores: pd.Series
     fuente: str = "Banco Mundial"
     frecuencia: str = "anual"
+    unidad: str = "no especificada"
+
+    def __post_init__(self):
+        if any(not isinstance(v, str) or not v.strip() for v in (self.indicador, self.pais, self.fuente, self.frecuencia, self.unidad)):
+            raise ValueError("Los metadatos del indicador deben ser textos no vacíos.")
+        if not isinstance(self.valores, pd.Series) or self.valores.empty:
+            raise ValueError("El indicador necesita observaciones.")
+        if not isinstance(self.valores.index, pd.DatetimeIndex) or self.valores.index.hasnans or self.valores.index.has_duplicates:
+            raise ValueError("Las fechas del indicador deben ser válidas y únicas.")
+        if not pd.api.types.is_numeric_dtype(self.valores.dtype) or pd.api.types.is_bool_dtype(self.valores.dtype):
+            raise ValueError("El indicador debe ser numérico.")
+        if not np.isfinite(self.valores.to_numpy()).all():
+            raise ValueError("El indicador debe contener valores finitos.")
+        self.valores = self.valores.astype(float).sort_index().copy()
+        self.valores.name = self.indicador
 
 
 def descargar_indicador(
-    pais: str, indicador: str, inicio: int, fin: int
+    pais: str, indicador: str, inicio: int, fin: int, unidad: str | None = None
 ) -> SerieIndicador:
     """Obtiene un indicador anual del Banco Mundial sin clave API.
 
@@ -48,7 +64,7 @@ def descargar_indicador(
     url = f"https://api.worldbank.org/v2/country/{pais}/indicator/{indicador}?{parametros}"
 
     try:
-        with urlopen(url, timeout=15) as respuesta:
+        with urlopen(url, timeout=30) as respuesta:
             datos = json.loads(respuesta.read().decode("utf-8"))
     except (OSError, ValueError) as error:
         raise RuntimeError("No se pudo obtener el indicador del Banco Mundial.") from error
@@ -65,4 +81,5 @@ def descargar_indicador(
 
     fechas, valores = zip(*sorted(observaciones))
     serie = pd.Series(valores, index=pd.DatetimeIndex(fechas), name=indicador, dtype=float)
-    return SerieIndicador(indicador=indicador, pais=pais, valores=serie)
+    unidad = unidad or ("USD corrientes" if indicador == "NY.GDP.MKTP.CD" else "no especificada")
+    return SerieIndicador(indicador=indicador, pais=pais, valores=serie, unidad=unidad)

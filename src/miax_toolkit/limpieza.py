@@ -11,6 +11,10 @@ def limpiar_precios(
     umbral_split: float = 0.50,
 ):
     """Limpia una serie de precios y devuelve (serie_limpia, resumen)."""
+    if not isinstance(serie, pd.Series) or serie.empty:
+        raise ValueError("Se necesita una serie de precios no vacía.")
+    if pd.api.types.is_bool_dtype(serie.dtype):
+        raise ValueError("Los valores booleanos no son precios.")
     resumen = []  # aquí iremos apuntando todo lo que se corrige
     serie = serie.copy()  # trabajamos con una copia para no tocar el original
     n_inicial = len(serie)  # para el resumen final
@@ -36,7 +40,13 @@ def limpiar_precios(
             serie = serie[serie.index.notna()]
             resumen.append(f"{nombre}: {imposibles} fecha(s) imposible(s) eliminada(s).")
 
-    # Quitar zona horaria y hora: así el mismo día coincide en todas las bolsas
+    # También puede haber NaT en un índice que ya era DatetimeIndex.
+    invalidas = serie.index.isna().sum()
+    if invalidas:
+        serie = serie[serie.index.notna()]
+        resumen.append(f"{nombre}: {invalidas} fecha(s) imposible(s) eliminada(s).")
+
+    # Fechas de sesión local: no convertimos una sesión a otra zona horaria.
     if serie.index.tz is not None:
         serie.index = serie.index.tz_localize(None)
     serie.index = serie.index.normalize()
@@ -104,7 +114,12 @@ def alinear_precios(precios):
     columna por activo. Devuelve (tabla_alineada, resumen).
     """
     if isinstance(precios, pd.DataFrame):
+        if precios.columns.has_duplicates:
+            raise ValueError("Hay nombres de activos duplicados.")
         precios = {columna: precios[columna] for columna in precios.columns}
+
+    if not isinstance(precios, dict) or not precios:
+        raise ValueError("Se necesita un diccionario de series o un DataFrame no vacío.")
 
     resumen = []
     limpias = {}
@@ -133,6 +148,8 @@ def alinear_precios(precios):
 def validar_pesos(pesos: dict, activos) -> pd.Series:
     """Comprueba que los pesos encajan con los activos y suman 1."""
     pesos = pd.Series(pesos, dtype=float)
+    if pesos.index.has_duplicates or not len(pesos):
+        raise ValueError("Los pesos deben tener activos únicos y no estar vacíos.")
 
     faltan = sorted(set(activos) - set(pesos.index))
     sobran = sorted(set(pesos.index) - set(activos))
@@ -142,7 +159,32 @@ def validar_pesos(pesos: dict, activos) -> pd.Series:
         )
     if pesos.isna().any():
         raise ValueError("Hay pesos vacíos (NA).")
-    if not np.isclose(pesos.sum(), 1.0):
+    if not np.isfinite(pesos).all() or (pesos < 0).any():
+        raise ValueError("Los pesos deben ser finitos y no negativos.")
+    if not np.isclose(pesos.sum(), 1.0, rtol=0, atol=1e-6):
         raise ValueError(f"Los pesos deben sumar 1 y suman {pesos.sum():.4f}.")
 
     return pesos.reindex(activos)  # mismo orden que las columnas de precios
+
+
+def validar_tabla(precios: pd.DataFrame, min_observaciones: int = 3) -> None:
+    """Contrato del análisis: precios diarios, positivos, finitos y alineados."""
+    if (isinstance(min_observaciones, bool) or not isinstance(min_observaciones, int)
+            or min_observaciones < 3):
+        raise ValueError("min_observaciones debe ser un entero de al menos 3.")
+    if not isinstance(precios, pd.DataFrame) or precios.empty or not len(precios.columns):
+        raise ValueError("Se necesita una tabla de precios no vacía.")
+    if len(precios) < min_observaciones:
+        raise ValueError(f"Se necesitan al menos {min_observaciones} fechas comunes válidas.")
+    fechas = precios.index
+    if (not isinstance(fechas, pd.DatetimeIndex) or fechas.hasnans
+            or fechas.has_duplicates or not fechas.is_monotonic_increasing
+            or precios.columns.has_duplicates):
+        raise ValueError("Las fechas deben ser válidas, únicas y ordenadas; los activos, únicos.")
+    if any(not pd.api.types.is_numeric_dtype(t) or pd.api.types.is_bool_dtype(t) for t in precios.dtypes):
+        raise ValueError("Los precios deben ser numéricos.")
+    if not np.isfinite(precios.to_numpy()).all() or (precios <= 0).any().any():
+        raise ValueError("Los precios deben ser positivos y finitos, sin valores ausentes.")
+    saltos = fechas.to_series().diff().dropna().dt.total_seconds() / 86400
+    if (saltos < 1).any() or saltos.median() > 4:
+        raise ValueError("El análisis requiere precios diarios, no intradía, semanales o mensuales.")
