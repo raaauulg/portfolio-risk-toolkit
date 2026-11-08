@@ -8,7 +8,7 @@ import pandas as pd
 from .limpieza2 import alinear_precios, limpiar_precios
 from .modelos import SeriePrecios
 from .montecarlo import SimulationResult, simular_activo, simular_cartera
-
+from .reportes import GRAFICOS, SECCIONES, generar_plots, generar_report
 
 @dataclass
 class Cartera:
@@ -81,3 +81,42 @@ class Cartera:
         precios, _ = alinear_precios(self.obtener_precios())
         return simular_cartera(precios, self.obtener_pesos(), v0=100.0 if v0 is None else v0,
                                nombre=self.nombre, **opciones)
+
+    def report(
+        self,
+        secciones=SECCIONES,
+        tasa_libre: float = 0.0,
+        nivel_var: float = 0.95,
+        benchmark: pd.Series | None = None,
+        simulacion: SimulationResult | None = None,
+        umbrales: dict | None = None,
+        ruta=None,
+    ) -> str:
+        """Informe en Markdown con métricas, diagnóstico y advertencias de riesgo.
+
+        Limpia y alinea los precios y delega en reportes.generar_report. Para
+        incluir el Monte Carlo, pasar simulacion=cartera.monte_carlo().
+        """
+        precios, diagnostico = alinear_precios(self.obtener_precios())
+        return generar_report(
+            precios, self.obtener_pesos(), nombre=self.nombre, secciones=secciones,
+            tasa_libre=tasa_libre, nivel_var=nivel_var, benchmark=benchmark,
+            simulacion=simulacion, diagnostico=diagnostico,
+            monedas=self.obtener_monedas(), umbrales=umbrales, ruta=ruta,
+        )
+
+    def plots_report(
+        self,
+        graficos=GRAFICOS,
+        benchmark: pd.Series | None = None,
+        ventana_volatilidad: int = 63,
+        mostrar: bool = True,
+        carpeta=None,
+    ) -> dict:
+        """Gráficos de rendimiento, correlaciones, evolución y riesgo de la cartera."""
+        precios, _ = alinear_precios(self.obtener_precios())
+        return generar_plots(
+            precios, self.obtener_pesos(), nombre=self.nombre, graficos=graficos,
+            benchmark=benchmark, ventana_volatilidad=ventana_volatilidad,
+            mostrar=mostrar, carpeta=carpeta,
+        )
