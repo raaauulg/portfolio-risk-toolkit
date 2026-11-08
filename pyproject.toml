@@ -9,10 +9,11 @@ description = "Herramientas de análisis financiero para el taller B1-T1 de MIAX
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pandas==3.1.0",
-    "numpy>=2.0",
-    "yfinance==1.8.0",
-]
+       "pandas==3.1.0",
+       "numpy>=2.0",
+       "yfinance==1.8.0",
+       "matplotlib>=3.9",
+   ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
