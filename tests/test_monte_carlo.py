@@ -144,6 +144,14 @@ def test_activo_sin_moneda_da_error(series):
         cartera.monte_carlo(n_sims=50, horizonte=5)
 
 
+def test_precios_no_diarios_dan_error(series):
+    mensual = SeriePrecios("MMM", series[1].precios, fuente="sintetica", moneda="USD", frecuencia="mensual")
+    cartera = Cartera("Mixta", [series[0], mensual], {"AAA": 0.5, "MMM": 0.5})
+
+    with pytest.raises(ValueError, match="frecuencia diaria"):
+        cartera.monte_carlo(n_sims=50, horizonte=5)
+
+
 # Errores
 
 def test_nu_menor_o_igual_que_2_da_error(cartera):

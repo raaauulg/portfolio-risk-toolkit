@@ -29,6 +29,25 @@ entorno. Si se modifica el código, reinstalar con `python -m pip install .`
 usando el intérprete de ese entorno; para desarrollo se puede instalar con
 `python -m pip install -e .`.
 
+## Pruebas
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+No necesitan Internet: las llamadas a Yahoo, Banco Mundial, FRED y BCE se
+simulan con `unittest.mock` y el resto usa datos sintéticos con semilla fija.
+Hay un fichero por módulo (`tests/test_extractores.py`, `test_limpieza.py`,
+`test_monte_carlo.py`, `test_reportes.py`…). Entre otras cosas comprueban:
+
+- que todas las fuentes devuelven objetos con el mismo contrato de datos;
+- que la cartera valida pesos, moneda y frecuencia;
+- que la simulación es reproducible con la misma semilla y que la mediana de
+  `log(valor final)` de un activo coincide con `log(v0) + retorno · años`;
+- que el informe y los gráficos se generan y que los ficheros de texto
+  están en UTF-8.
+
 ## Ejemplos reproducibles
 
 | Ejemplo | Qué demuestra | Conexión |
