@@ -42,7 +42,7 @@ def _csv(url: str, parametros: dict, fuente: str, periodo: str = "") -> pd.DataF
         "Puede que la serie no exista o que el rango no contenga días con dato "
         "(fin de semana, festivo o fechas fuera del histórico disponible)."
     )
-    if respuesta.status_code == 404 or not respuesta.text.strip():
+    if respuesta.status_code == 404:
         raise ValueError(sin_datos)
     try:
         respuesta.raise_for_status()
@@ -50,6 +50,10 @@ def _csv(url: str, parametros: dict, fuente: str, periodo: str = "") -> pd.DataF
         raise RuntimeError(
             f"{fuente} respondió con un error HTTP {respuesta.status_code}; inténtalo más tarde."
         ) from error
+    # Una respuesta vacía solo significa ausencia de datos si la petición tuvo
+    # éxito. Un 429/503 vacío sigue siendo un error del servicio.
+    if not respuesta.text.strip():
+        raise ValueError(sin_datos)
     try:
         return pd.read_csv(StringIO(respuesta.text))
     except pd.errors.EmptyDataError as error:

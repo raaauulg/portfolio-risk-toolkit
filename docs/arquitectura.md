@@ -67,7 +67,7 @@ sequenceDiagram
     loop por cada ticker
         E->>Y: Ticker.history(auto_adjust=True)
         Y-->>E: DataFrame con cierres
-        E->>S: SeriePrecios(ticker, precios, fuente, moneda)
+        E->>S: SeriePrecios(ticker, precios, fuente, moneda=...)
         Note over S: __post_init__ valida y calcula media y desviación típica
     end
     E-->>U: dict ticker → SeriePrecios
@@ -85,7 +85,7 @@ sequenceDiagram
 
     U->>C: report(simulacion=resultado, benchmark=...)
     C->>C: _preparar_datos()
-    C->>R: generar_report(precios, pesos, simulacion, diagnóstico, monedas)
+    C->>R: generar_report(precios, pesos, simulacion=..., benchmark=...)
     R-->>C: texto Markdown
     C-->>U: informe Markdown
 
@@ -99,9 +99,11 @@ sequenceDiagram
 Puntos que conviene leer en el diagrama:
 
 - **La cartera no calcula, coordina.** `monte_carlo()`, `report()` y
-  `plots_report()` pasan por `_preparar_datos()`: simulación, informe y
-  gráficos usan exactamente los mismos datos validados y alineados. Después delega en el módulo que sabe
-  hacer el cálculo.
+  `plots_report()` pasan por `_preparar_datos()`: comparten la preparación de
+  los precios de la cartera. Si se proporciona un benchmark, el informe y los
+  gráficos históricos restringen después sus datos a las fechas comunes con
+  esa referencia; esto no recalibra la simulación. A continuación cada método
+  delega en el módulo que realiza el cálculo.
 - **El motor y los informes no conocen `Cartera` ni las APIs.** Reciben una
   tabla de precios y unos pesos. Por eso se pueden probar con datos sintéticos
   y reutilizar con cualquier fuente.

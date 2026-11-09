@@ -75,3 +75,15 @@ def test_bce_sin_observaciones_en_el_rango_da_un_error_de_datos(get):
 def test_error_del_servidor_no_se_confunde_con_falta_de_datos(get):
     with pytest.raises(RuntimeError, match="HTTP 503"):
         descargar_sp500_fred("2025-01-01", "2025-01-10")
+
+
+@pytest.mark.parametrize("codigo", [429, 503])
+@pytest.mark.parametrize("fuente", ["FRED", "BCE"])
+@patch("miax_toolkit.fuentes.requests.get")
+def test_error_http_vacio_no_se_confunde_con_falta_de_datos(get, codigo, fuente):
+    get.return_value = _Respuesta("", status_code=codigo)
+    with pytest.raises(RuntimeError, match=rf"{fuente}.*HTTP {codigo}"):
+        if fuente == "FRED":
+            descargar_sp500_fred("2025-01-01", "2025-01-10")
+        else:
+            descargar_tipo_cambio_bce("USD", "2025-01-01", "2025-01-10")
