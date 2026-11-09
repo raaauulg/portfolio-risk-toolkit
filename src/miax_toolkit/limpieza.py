@@ -23,9 +23,9 @@ def limpiar_precios(
     if (isinstance(umbral_split, (bool, np.bool_)) or not isinstance(umbral_split, Real)
             or not np.isfinite(umbral_split) or umbral_split <= 0):
         raise ValueError("umbral_split debe ser positivo y finito.")
-    resumen = []  # aquí iremos apuntando todo lo que se corrige
-    serie = serie.copy()  # trabajamos con una copia para no tocar el original
-    n_inicial = len(serie)  # para el resumen final
+    resumen = []
+    serie = serie.copy()  # La limpieza no modifica la entrada.
+    n_inicial = len(serie)
 
     # 1. Validación y depuración de fechas
     if not isinstance(serie.index, pd.DatetimeIndex):
@@ -96,7 +96,7 @@ def limpiar_precios(
     nulos = serie.isna().sum()
     if nulos > 0:
         pct_nulos = nulos / len(serie)
-        serie = serie.dropna()  # equivale a na.omit() de R
+        serie = serie.dropna()
         resumen.append(f"{nombre}: {nulos} NA eliminado(s).")
         if pct_nulos > max_pct_nulos:
             resumen.append(
@@ -159,6 +159,9 @@ def alinear_precios(precios):
 
 def validar_pesos(pesos: dict, activos) -> pd.Series:
     """Comprueba que los pesos encajan con los activos y suman 1."""
+    activos = list(activos)
+    if not activos or pd.Index(activos).has_duplicates:
+        raise ValueError("Los activos deben ser únicos y no estar vacíos.")
     try:
         originales = pd.Series(pesos)
         if any(isinstance(x, (bool, np.bool_, complex)) for x in originales):
