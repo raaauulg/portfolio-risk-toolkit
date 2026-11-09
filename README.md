@@ -276,6 +276,9 @@ docs/
     arquitectura.md
     arquitectura.dot
     arquitectura.svg
+    secuencia.svg      Diagrama de secuencia renderizado
+app/                   Dashboard opcional (capa de presentación, no forma parte del paquete)
+data/sample/           Instantánea de datos reales para el dashboard sin conexión
 ```
 
 El diagrama UML muestra las clases, los módulos y sus dependencias. Las flechas
@@ -378,6 +381,56 @@ def descargar_precios_mi_proveedor(ticker: str, inicio: str, fin: str,
 A partir de ahí, la nueva serie funciona igual que una de Yahoo:
 `Cartera("Mixta", [serie_yahoo, serie_nueva], pesos).report()`.
 
+## Dashboard interactivo (opcional)
+
+Una aplicación local con Streamlit para explorar el toolkit sin escribir
+código. Es una **capa de presentación más**, como los scripts de `ejemplos/`:
+solo consume la API pública (`Cartera`, `report()`, `plots_report()`,
+`SimulationResult`, `reportes.metricas`…) y **no modifica ni una línea de
+`src/`**. Sus dependencias son opcionales: `import miax_toolkit` no carga
+Streamlit ni Plotly.
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[app]"
+.\.venv\Scripts\python.exe -m streamlit run app/dashboard.py
+```
+
+Se abre en `http://localhost:8501`. Con `http://localhost:8501/?preset=demo`
+arranca con la cartera de demostración ya calculada.
+
+- **Modos de datos.** *Instantánea* (por defecto) usa los datos reales de
+  `data/sample/` (2021-2025, descargados con el propio toolkit) y funciona sin
+  Internet. *En directo* descarga de Yahoo Finance y FRED con
+  `descargar_series` y `descargar_sp500_fred`.
+- **Presets de un clic.** *Demo de la presentación* (cinco sectores de EE. UU.
+  frente al S&P 500), *EE. UU. tecnológicas* y *Europa (EUR)*, cada uno en una
+  sola moneda, porque el toolkit no convierte divisas.
+- **Páginas.** Resumen (KPI frente al benchmark y advertencias del informe),
+  Datos y calidad (contrato de datos y diagnóstico de limpieza), Cartera y
+  riesgo, Monte Carlo (abanico, valor final y comparador de colas t frente a
+  normal), Informe (`report()` y las figuras de `plots_report()` tal cual) y
+  Arquitectura.
+- **Errores.** Las validaciones son las del toolkit: unos pesos que no suman
+  100 % o una cartera que mezcla monedas muestran el mensaje de su
+  `ValueError`. Un fallo de red (`RuntimeError`) se distingue de una consulta
+  sin datos (`ValueError`) y sugiere el modo sin conexión.
+
+| Resumen | Monte Carlo |
+| --- | --- |
+| ![Resumen del dashboard](docs/img/dashboard_resumen.png) | ![Página de Monte Carlo](docs/img/dashboard_monte_carlo.png) |
+
+Hay más capturas en `docs/img/` y un guion de demostración en
+[docs/guion_demo_dashboard.md](docs/guion_demo_dashboard.md). Los tests del
+dashboard están en `tests/app/` (con `streamlit.testing.v1.AppTest`) y se
+omiten si no está instalado el extra `[app]`.
+
+**Limitaciones.** Tres series que la API pública no expone (drawdown,
+volatilidad móvil y rendimientos diarios) se derivan en
+`app/transformaciones.py` con las mismas fórmulas que las figuras del toolkit;
+los tests comprueban que coinciden. Exponerlas en `reportes.py` permitiría
+eliminar ese módulo. Los activos de la instantánea se eligieron a posteriori
+(sesgo de supervivencia) y su rentabilidad histórica es optimista.
+
 ## Referencias
 
 - [yfinance: consulta de históricos](https://ranaroussi.github.io/yfinance/reference/api/yfinance.Ticker.history.html).
@@ -388,7 +441,9 @@ A partir de ahí, la nueva serie funciona igual que una de Yahoo:
 - [BCE: ejemplos de la API SDMX](https://data.ecb.europa.eu/help/api/data-examples).
 
 Se aplican las condiciones de cada proveedor. El repositorio contiene los
-adaptadores y ejemplos, no copias de sus históricos. El diseño de la ingesta
+adaptadores y ejemplos; la única copia de datos es la pequeña instantánea
+académica de `data/sample/` que usa el dashboard sin conexión (fuentes,
+fecha y condiciones en su propio README). El diseño de la ingesta
 y la normalización toma como referencia los materiales de clase
 `01_DescargaDeDatos`, `01_DescargaDeDatosV2`, `clase_market_signal_ALUMNOS`
 y `01_Fuentes_Datos_Econ_Financieros`.

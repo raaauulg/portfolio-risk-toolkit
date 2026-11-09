@@ -18,6 +18,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==9.2.0"]
+# Capa de presentación opcional (dashboard en app/). El núcleo no la importa.
+app = ["streamlit==1.66.1", "plotly==7.1.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Permite importar el paquete app/ (dashboard) desde los tests sin instalarlo.
+pythonpath = ["."]
