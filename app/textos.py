@@ -5,7 +5,8 @@ AYUDA = {
             "funciona sin Internet. En directo: descarga de Yahoo Finance y FRED con el toolkit.",
     "activos": "Hasta 8 activos de una sola moneda. El toolkit no convierte divisas y rechaza "
                "carteras que las mezclan.",
-    "tickers": "Símbolos de Yahoo Finance separados por comas, por ejemplo: AAPL, MSFT, SAN.MC.",
+    "tickers": "Símbolos de Yahoo Finance separados por comas, por ejemplo: AAPL, MSFT, SAN.MC. "
+               "Los símbolos repetidos se consideran una sola vez, sin distinguir mayúsculas.",
     "desde": "Primera fecha del análisis (incluida).",
     "hasta": "Última fecha del análisis (incluida).",
     "benchmark": "Índice de referencia para comparar la cartera. Las métricas se calculan sobre "

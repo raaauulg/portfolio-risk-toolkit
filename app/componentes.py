@@ -36,12 +36,13 @@ def resultados_o_estado_vacio() -> Resultados:
     return resultados
 
 
-def cabecera(titulo: str, res: Resultados) -> None:
+def cabecera(titulo: str, res: Resultados, *, calibracion: bool = False) -> None:
     """Título de página con el contexto del análisis en una línea."""
     st.title(titulo)
-    fechas = res.tabla_analisis.index
+    fechas = (res.tabla if calibracion else res.tabla_analisis).index
+    contexto = "Calibración histórica · " if calibracion else ""
     fuente = "Instantánea sin conexión" if res.config.modo == "instantanea" else "Datos en directo"
-    st.caption(f"**{res.config.nombre}** · {fecha(fechas[0])}–{fecha(fechas[-1])} · "
+    st.caption(f"**{res.config.nombre}** · {contexto}{fecha(fechas[0])}–{fecha(fechas[-1])} · "
                f"{len(fechas):,} sesiones · {res.moneda} · {fuente}".replace(",", "."))
 
 
@@ -74,12 +75,13 @@ def mostrar_error(error: Exception, modo: str) -> None:
                  icon=":material/wifi_off:")
     elif isinstance(error, ErrorDeDatos):
         texto = str(error)
+        ayuda = "Cambia los activos o las fechas de la consulta."
         if modo == "directo" and "no devolvió" in texto:
             # yfinance a veces devuelve una tabla vacía en lugar de fallar sin red.
-            texto += (" Puede ser un ticker inexistente, un rango sin sesiones o falta de conexión; "
-                      "prueba el modo **Instantánea**, que funciona sin conexión.")
-        st.warning(f"**No hay datos para esa consulta.** {texto}\n\n"
-                   "No es un fallo de conexión: cambia los activos o las fechas.", icon=":material/event_busy:")
+            ayuda = ("Puede ser un ticker inexistente, un rango sin sesiones o falta de conexión; "
+                     "prueba el modo **Instantánea**, que funciona sin conexión.")
+        st.warning(f"**No hay datos para esa consulta.** {texto}\n\n{ayuda}",
+                   icon=":material/event_busy:")
     elif isinstance(error, ValueError):
         st.warning(f"**La configuración no es válida.** {error}", icon=":material/report:")
     else:

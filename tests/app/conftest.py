@@ -11,6 +11,14 @@ else:
 
     matplotlib.use("Agg")  # backend sin ventana: los tests no abren gráficos
 
+    @pytest.fixture(scope="session", autouse=True)
+    def cerrar_temporal_apptest():
+        """Cierra el temporal global de AppTest 1.66.1 al terminar las pruebas."""
+        from streamlit.testing.v1 import app_test
+
+        yield
+        app_test.TMP_DIR.cleanup()
+
 
 @pytest.fixture(scope="session")
 def instantanea():

@@ -425,7 +425,7 @@ arranca con la cartera de demostración ya calculada.
   `data/sample/` (2021-2025, descargados con el propio toolkit) y funciona sin
   Internet. *En directo* descarga de Yahoo Finance y FRED con
   `descargar_series` y `descargar_sp500_fred`.
-- **Presets de un clic.** *Demo de la presentación* (cinco sectores de EE. UU.
+- **Presets de un clic.** *Demo de la presentación* (cinco empresas de distintos sectores de EE. UU.
   frente al S&P 500), *EE. UU. tecnológicas* y *Europa (EUR)*, cada uno en una
   sola moneda, porque el toolkit no convierte divisas.
 - **Páginas.** Resumen (KPI frente al benchmark y advertencias del informe),
@@ -440,18 +440,28 @@ arranca con la cartera de demostración ya calculada.
 
 | Resumen | Monte Carlo |
 | --- | --- |
-| ![Resumen del dashboard](docs/img/dashboard_resumen.png) | ![Página de Monte Carlo](docs/img/dashboard_monte_carlo.png) |
+| ![Resumen del dashboard](docs/img/dashboard_resumen.png) | ![Página de Monte Carlo](docs/img/dashboard_monte_carlo.jpg) |
 
-Hay más capturas en `docs/img/` y un guion de demostración en
-[docs/guion_demo_dashboard.md](docs/guion_demo_dashboard.md). Los tests del
-dashboard están en `tests/app/` (con `streamlit.testing.v1.AppTest`) y se
-omiten si no está instalado el extra `[app]`.
+Hay más capturas en `docs/img/`. Los tests del dashboard están en
+`tests/app/` (con `streamlit.testing.v1.AppTest`) y se omiten si no está
+instalado el extra `[app]`. Para ejecutar también estas pruebas:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,app]"
+.\.venv\Scripts\python.exe -W error -m pytest -q
+```
+
+Las pruebas recorren los tres presets sin conexión y comprueban errores de
+consulta, pesos, monedas, tickers repetidos y el comparador de colas. Monte Carlo
+usa las fechas comunes entre activos; las métricas históricas con benchmark
+usan además las fechas disponibles de ese índice. La página de Monte Carlo
+muestra el calendario de calibración, que puede ser distinto del histórico
+comparado.
 
 **Limitaciones.** Tres series que la API pública no expone (drawdown,
 volatilidad móvil y rendimientos diarios) se derivan en
 `app/transformaciones.py` con las mismas fórmulas que las figuras del toolkit;
-los tests comprueban que coinciden. Exponerlas en `reportes.py` permitiría
-eliminar ese módulo. Los activos de la instantánea se eligieron a posteriori
+los tests comprueban que coinciden. Los activos de la instantánea se eligieron a posteriori
 (sesgo de supervivencia) y su rentabilidad histórica es optimista.
 
 ## Referencias

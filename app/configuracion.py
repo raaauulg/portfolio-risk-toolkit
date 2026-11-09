@@ -53,7 +53,7 @@ _COMUN = dict(modo="instantanea", inicio="2021-01-01", fin="2026-01-01", n_sims=
 PRESETS: dict[str, Preset] = {
     "demo": Preset(
         "Demo de la presentación",
-        "Cinco sectores de EE. UU. frente al S&P 500. Deja todas las páginas listas.",
+        "Cinco empresas de distintos sectores de EE. UU. frente al S&P 500.",
         Configuracion(activos=("AAPL", "MSFT", "JPM", "JNJ", "XOM"),
                       pesos=(0.25, 0.20, 0.20, 0.20, 0.15), benchmark="^GSPC",
                       nombre="Cartera Demo (EE. UU.)", **_COMUN),

@@ -12,7 +12,7 @@ N_MUESTRA = 30
 
 res = componentes.resultados_o_estado_vacio()
 modo = componentes.modo_tema()
-componentes.cabecera("Monte Carlo", res)
+componentes.cabecera("Monte Carlo", res, calibracion=True)
 st.info(AVISO_MONTE_CARLO, icon=":material/info:")
 
 sim, normal = res.simulacion, res.simulacion_normal
@@ -20,7 +20,7 @@ r = sim.resumen()
 moneda = res.moneda
 extremos = sim.percentiles((1, 99)).iloc[-1]  # para recortar el histograma a P1-P99, como el toolkit
 
-fila = st.columns(4)
+fila = [*st.columns(2), *st.columns(2)]
 componentes.tarjeta(fila[0], "Probabilidad de pérdida", porcentaje(r["prob_perdida"]),
                     "Escenarios que terminan por debajo del valor inicial.")
 componentes.tarjeta(fila[1], "P5 · desfavorable", dinero(r["P5"], moneda),
@@ -73,13 +73,14 @@ col1.plotly_chart(graficos.comparador_colas(sim.trayectorias[:, dia], normal.tra
                   width="stretch", config=opciones)
 with col2:
     comparacion = pd.DataFrame({
-        f"nu = {res.config.nu:g}": [dinero(v, moneda) for v in cola_t],
-        f"nu = {NU_CASI_NORMAL}": [dinero(v, moneda) for v in cola_n],
+        f"Elegido · nu = {res.config.nu:g}": [dinero(v, moneda) for v in cola_t],
+        f"Referencia · nu = {NU_CASI_NORMAL}": [dinero(v, moneda) for v in cola_n],
     }, index=[n.replace(".", ",") for n in cola_t.index])
     st.dataframe(comparacion, width="stretch")
 st.caption(
-    "Cómo leerlo: con nu bajo, en un día hay a la vez más días tranquilos y más días extremos "
-    "(P0,1 y P99,9 más alejados). A horizontes largos, la suma de muchos shocks diarios "
-    "independientes se parece a una normal (teorema central del límite) y la diferencia casi "
-    "desaparece: las colas gruesas importan sobre todo para el riesgo a corto plazo, como el VaR diario.")
+    "Cómo leerlo: con nu bajo, la distribución de los shocks diarios tiene más masa en el centro "
+    "y en las colas que una normal con la misma varianza. Los percentiles mostrados son estimaciones "
+    "de una muestra simulada. Al agregar shocks independientes, la parte central puede aproximarse "
+    "a una normal, pero eso no garantiza que desaparezcan las diferencias en los extremos. "
+    "La comparación depende de nu, del horizonte y del número de escenarios.")
 componentes.glosario()

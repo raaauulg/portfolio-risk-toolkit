@@ -36,7 +36,7 @@ for linea in res.diagnostico:
         st.markdown(f"- {linea}")
 if res.referencia is not None and len(res.tabla_analisis) < len(res.tabla):
     st.info(f"Benchmark: el análisis usa {len(res.tabla_analisis)} de {len(res.tabla)} fechas comunes "
-            f"porque {res.nombre_ref} no cotiza en el resto. No se rellenan precios.",
+            f"porque no hay datos disponibles de {res.nombre_ref} en el resto. No se rellenan precios.",
             icon=":material/event_busy:")
 
 # Base 100 de cada activo con la función del toolkit (cartera de un solo activo).
@@ -47,9 +47,10 @@ st.subheader("Descargas")
 col1, col2 = st.columns(2)
 col1.download_button("Precios alineados (CSV)", res.tabla.to_csv(index_label="fecha").encode("utf-8"),
                      file_name="precios_alineados.csv", mime="text/csv", icon=":material/download:",
-                     help="Cierres en las fechas comunes a todos los activos, tal como entran en el análisis.")
-originales = pd.concat({s.ticker: s.precios for s in series}, axis=1)
+                     help="Fechas comunes entre activos, usadas en Monte Carlo. Las métricas históricas "
+                          "se restringen además a las fechas disponibles del benchmark, si se elige uno.")
+originales = pd.concat({s.ticker: s.precios for s in series}, axis=1, sort=True)
 col2.download_button("Precios originales (CSV)", originales.to_csv(index_label="fecha").encode("utf-8"),
                      file_name="precios_originales.csv", mime="text/csv", icon=":material/download:",
-                     help="Cada serie con su propio calendario (celdas vacías donde no cotiza).")
+                     help="Cada serie con su propio calendario (celdas vacías donde no hay dato disponible).")
 componentes.glosario()

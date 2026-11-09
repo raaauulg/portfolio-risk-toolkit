@@ -6,7 +6,7 @@ y reportes._grafico_riesgo), pero no las ofrece como funciones públicas. Aquí 
 replican con las mismas fórmulas, y tests/app/test_transformaciones.py comprueba
 que coinciden con los datos de esas figuras y con reportes.metricas().
 
-Propuesta para el grupo: exponerlas en reportes.py; entonces este módulo sobraría.
+Se mantienen aquí porque su uso es visual y la API pública del núcleo no las expone.
 """
 
 import numpy as np

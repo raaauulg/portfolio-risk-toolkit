@@ -48,7 +48,7 @@ def test_comparador_de_colas_usa_la_misma_semilla_y_otro_nu(calcular_preset):
     assert t["semilla"] == normal["semilla"] and t["n_sims"] == normal["n_sims"]
     assert (t["nu"], normal["nu"]) == (PRESETS["demo"].config.nu, NU_CASI_NORMAL)
     # A un día, colas más gruesas: extremos más alejados con el nu pequeño.
-    # (A un año casi desaparecen: la suma de 252 shocks independientes tiende a la normal.)
+    # Se comprueba este preset y esta semilla, no una garantía para cualquier horizonte.
     t_dia1 = res.simulacion.percentiles((0.1, 99.9)).iloc[1]
     n_dia1 = res.simulacion_normal.percentiles((0.1, 99.9)).iloc[1]
     assert t_dia1["P0.1"] < n_dia1["P0.1"] and t_dia1["P99.9"] > n_dia1["P99.9"]

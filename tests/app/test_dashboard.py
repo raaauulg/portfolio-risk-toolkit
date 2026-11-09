@@ -2,6 +2,7 @@
 
 from datetime import date
 import socket
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
@@ -70,7 +71,8 @@ def test_pesos_invalidos_muestran_el_aviso_del_toolkit():
     assert "deben sumar 100 %" in _textos(app.sidebar.warning)
     app.button(key="calcular").click().run()
     assert not app.exception
-    assert "Los pesos de la cartera deben sumar 1." in _textos(app.main.warning)
+    assert "pesos" in _textos(app.main.warning) and "sumar 1" in _textos(app.main.warning)
+    assert app.session_state["resultados"] is None
     assert "Elige un preset" in _textos(app.main.info)  # la página no se rompe: vuelve al estado vacío
 
 
@@ -156,7 +158,7 @@ def test_fred_sin_observaciones_es_un_aviso_de_datos_no_de_red(ticker, get):
     assert not app.exception
     aviso = _textos(app.main.warning)
     assert "No hay datos para esa consulta" in aviso and "FRED no tiene observaciones" in aviso
-    assert "No es un fallo de conexión" in aviso
+    assert "Cambia los activos o las fechas" in aviso
     assert not app.main.error
 
 
@@ -168,6 +170,7 @@ def test_yahoo_sin_precios_es_un_aviso_de_datos(ticker):
     aviso = _textos(app.main.warning)
     assert "No hay datos para esa consulta" in aviso and "no devolvió precios" in aviso
     assert "ticker inexistente" in aviso
+    assert "falta de conexión" in aviso and "No es un fallo de conexión" not in aviso
     assert not app.main.error
 
 
@@ -182,7 +185,8 @@ def test_rango_sin_sesiones_en_la_instantanea_es_un_aviso_de_datos():
     assert not app.main.error
 
 
-def test_la_demo_no_necesita_red(monkeypatch):
+@pytest.mark.parametrize("preset", ["demo", "eeuu", "europa"])
+def test_los_presets_no_necesitan_red(monkeypatch, preset):
     original = socket.socket.connect
 
     def solo_local(self, direccion, *args, **kwargs):
@@ -191,8 +195,54 @@ def test_la_demo_no_necesita_red(monkeypatch):
         return original(self, direccion, *args, **kwargs)
 
     monkeypatch.setattr(socket.socket, "connect", solo_local)
-    app = _app("demo")
+    # Los avisos financieros de Riesgo alto usan st.error: no son errores de ejecución.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", pd.errors.Pandas4Warning)
+        app = _app(preset)
+        assert not app.exception
+        assert app.session_state["resultados"] is not None
+        for pagina in PAGINAS:
+            app.switch_page(pagina).run()
+            assert not app.exception, [e.value for e in app.exception]
+            assert "Elige un preset" not in _textos(app.main.info)
+
+
+@patch("miax_toolkit.extractores.yf.Ticker")
+def test_tickers_repetidos_se_calculan_una_sola_vez(ticker):
+    _yahoo_responde(ticker)
+    app = _app()
+    app.radio(key="w_modo").set_value("directo").run()
+    app.text_input(key="w_tickers").set_value(" AAPL, aapl, , MSFT, msft ").run()
     _sin_errores(app)
-    for pagina in PAGINAS:
-        app.switch_page(pagina).run()
-        _sin_errores(app)
+    assert sum(w.key == "w_peso_AAPL" for w in app.number_input) == 1
+    app.selectbox(key="w_benchmark").set_value("ninguno")
+    app.number_input(key="w_peso_AAPL").set_value(50.0)
+    app.number_input(key="w_peso_MSFT").set_value(50.0)
+    app.run()
+    app.button(key="calcular").click().run()
+    assert not app.exception
+    res = app.session_state["resultados"]
+    assert res is not None and res.config.activos == ("AAPL", "MSFT")
+    assert ticker.call_count == 2
+
+
+def test_comparador_con_nu_200_conserva_ambas_columnas():
+    app = _app("demo")
+    app.number_input(key="w_nu").set_value(200.0).run()
+    app.button(key="calcular").click().run()
+    app.switch_page("paginas/monte_carlo.py").run()
+    _sin_errores(app)
+    tabla = app.dataframe[-1].value
+    assert list(tabla.columns) == ["Elegido · nu = 200", "Referencia · nu = 200"]
+    assert tabla.iloc[:, 0].equals(tabla.iloc[:, 1])
+
+
+def test_monte_carlo_muestra_su_calendario_de_calibracion():
+    app = _app("europa")
+    res = app.session_state["resultados"]
+    assert len(res.tabla) > len(res.tabla_analisis)
+    app.switch_page("paginas/monte_carlo.py").run()
+    _sin_errores(app)
+    cabecera = _textos(app.main.caption)
+    assert "Calibración histórica" in cabecera
+    assert f"{len(res.tabla):,} sesiones".replace(",", ".") in cabecera

@@ -40,7 +40,7 @@ def inicializar() -> None:
 def _activos_elegidos() -> list[str]:
     if st.session_state["w_modo"] == "directo":
         partes = [t.strip().upper() for t in st.session_state["w_tickers"].split(",")]
-        return [t for t in partes if t]
+        return list(dict.fromkeys(t for t in partes if t))
     return list(st.session_state["w_activos"])
 
 
