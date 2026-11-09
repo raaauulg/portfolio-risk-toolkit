@@ -8,6 +8,7 @@
 **Toolkit en Python para descargar datos financieros de varias fuentes, llevarlos a un formato común,
 analizar carteras, simular escenarios de Monte Carlo y generar informes, con un dashboard que funciona sin conexión.**
 
+[![CI](https://github.com/raaauulg/miax-b1-t1/actions/workflows/ci.yml/badge.svg)](https://github.com/raaauulg/miax-b1-t1/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab.svg)](pyproject.toml)
 [![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
 [![Pruebas: pytest sin red](https://img.shields.io/badge/pruebas-pytest%20sin%20red-success.svg)](#pruebas)
@@ -166,7 +167,7 @@ destino). Los resultados no se versionan.
 
 ## Dashboard
 
-Aplicación local con Streamlit para explorar el toolkit sin escribir código. Es un consumidor más de la API pública,
+Aplicación Streamlit para explorar el toolkit sin escribir código. Es un consumidor más de la API pública,
 como los scripts de `ejemplos/`, y no modifica `src/`; sus dependencias son opcionales y `import miax_toolkit` no
 carga Streamlit ni Plotly.
 
@@ -217,6 +218,17 @@ carga Streamlit ni Plotly.
     distinto del de fallo de conexión.</sub></td>
   </tr>
 </table>
+
+### Despliegue en Streamlit Community Cloud
+
+El repositorio está preparado para publicar el dashboard en [Streamlit Community Cloud](https://streamlit.io/cloud):
+[`requirements.txt`](requirements.txt) instala el toolkit con el extra `app` y `.streamlit/config.toml` aporta el
+tema. Como el modo por defecto usa la instantánea, la aplicación publicada no depende de Yahoo ni de FRED.
+
+1. En [share.streamlit.io](https://share.streamlit.io), *Create app* → *Deploy a public app from GitHub*.
+2. Repositorio y rama del proyecto, archivo principal `app/dashboard.py`.
+3. En *Advanced settings*, Python 3.12.
+4. *Deploy*. Añadir `?preset=demo` a la URL publicada abre la cartera de demostración ya calculada.
 
 ## Arquitectura
 
@@ -446,6 +458,9 @@ A partir de ahí, la serie se usa igual que una de Yahoo:
 .\.venv\Scripts\python.exe -W error -m pytest -q
 ```
 
+La [integración continua](.github/workflows/ci.yml) las ejecuta en cada push y pull request, en Ubuntu y en Windows,
+junto con la demostración sin conexión y una instalación del núcleo sin las dependencias del dashboard.
+
 Las pruebas no necesitan Internet: las llamadas a Yahoo, Banco Mundial, FRED y BCE se simulan con `unittest.mock`
 y el resto usa datos sintéticos con semilla fija. Comprueban, entre otras cosas, que todas las fuentes cumplen el
 mismo contrato, que la cartera valida pesos, moneda y frecuencia, que la simulación es reproducible y que la mediana
@@ -470,24 +485,23 @@ instalado el extra `app`.
 
 ## Hoja de ruta
 
-**Dashboard como servicio permanente.** Hoy se ejecuta en local y se detiene al cerrar la terminal. El plan para
-dejarlo disponible de forma continua:
+**Dashboard como servicio propio.** Streamlit Community Cloud cubre la demostración pública (véase
+[Despliegue](#despliegue-en-streamlit-community-cloud)). Para un servicio con control total sobre recursos y acceso:
 
 1. **Contenedor.** `Dockerfile` con Python 3.12 que instale `.[app]` y arranque Streamlit con
    `--server.address 0.0.0.0 --server.headless true`, con `HEALTHCHECK` sobre `/_stcore/health`. La instantánea va
    dentro de la imagen, así que el servicio no depende de Yahoo ni de FRED para arrancar.
 2. **Servidor.** Una máquina virtual pequeña (Azure, AWS o GCP) con el contenedor en reinicio automático
-   (`--restart unless-stopped` o systemd), o un servicio gestionado como Azure Container Apps, Google Cloud Run o
-   Streamlit Community Cloud.
-3. **Acceso.** Proxy inverso (nginx o Caddy) con HTTPS y autenticación. Los datos del S&P 500 tienen condiciones de
-   uso, así que no debería quedar abierto sin control de acceso.
+   (`--restart unless-stopped` o systemd), o un servicio gestionado como Azure Container Apps o Google Cloud Run.
+3. **Acceso.** Proxy inverso (nginx o Caddy) con HTTPS y, si se publican datos con condiciones de uso
+   restrictivas, autenticación.
 4. **Datos al día.** Tarea programada (cron o GitHub Actions) que ejecute `python -m app.generar_instantanea`,
    pase las pruebas y publique la nueva instantánea, y caché persistente de descargas en Parquet o SQLite.
 5. **Varios usuarios.** Límites de memoria y escenarios por sesión, y simulaciones grandes en un proceso aparte.
 
 **Toolkit.**
 
-- Integración continua con GitHub Actions: `pytest -W error`, `ruff` y `mypy` en cada pull request.
+- Análisis estático (`ruff` y `mypy`) en la integración continua, que hoy ejecuta las pruebas en Ubuntu y Windows.
 - Contrato formal de adaptadores con `typing.Protocol` o una clase abstracta.
 - Funciones públicas en `reportes` para caídas, volatilidad móvil, beta y advertencias como datos, de modo que el
   dashboard deje de necesitar `app/transformaciones.py`.
