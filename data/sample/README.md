@@ -21,10 +21,11 @@ regeneran así (requiere Internet):
   abril de 2025.
 - **Formato largo** (`fecha,ticker,cierre`): cada serie conserva su propio
   calendario bursátil. La alineación entre bolsas la hace el toolkit
-  (`alinear_precios`) al analizar, no este fichero. En el universo europeo se
-  descartan 7 fechas en las que no cotizan todas las bolsas. El Euro Stoxx 50 de
-  Yahoo tiene 23 sesiones menos que las acciones; al usarlo como benchmark, el
-  análisis se hace sobre las fechas comunes, sin rellenar.
+  (`alinear_precios`) al analizar, no este fichero. En el universo europeo
+  hay 1.281 fechas distintas entre las seis acciones y se conservan 1.274 con
+  precio de todas ellas. Al cruzarlas con el Euro Stoxx 50 de Yahoo quedan
+  1.258 fechas comunes. La ausencia de un dato no demuestra por sí sola que
+  la bolsa estuviera cerrada; no se rellenan observaciones.
 - **Ajuste:** las acciones son cierres ajustados por dividendos y splits
   (`auto_adjust=True`). Los índices son índices de precios, sin dividendos, así
   que la comparación con la cartera no es exactamente homogénea.

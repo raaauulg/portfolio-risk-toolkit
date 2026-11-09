@@ -65,7 +65,8 @@ def instantanea() -> tuple[dict[str, SeriePrecios], pd.DataFrame]:
 def descargar_en_directo(activos: tuple[str, ...], inicio: str, fin: str,
                          benchmark: str | None) -> tuple[dict[str, SeriePrecios], SeriePrecios | None]:
     """Descarga con los extractores del toolkit. Una hora de caché para no repetir llamadas."""
-    series = descargar_series(list(activos), inicio, fin)
+    tipos = {ticker: "indice" for ticker in activos if ticker.startswith("^")}
+    series = descargar_series(list(activos), inicio, fin, tipos=tipos)
     referencia = None
     if benchmark == "^GSPC":
         referencia = descargar_sp500_fred(inicio, fin)
