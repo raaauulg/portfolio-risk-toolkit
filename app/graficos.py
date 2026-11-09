@@ -136,8 +136,8 @@ def distribucion_rendimientos(rendimientos: pd.Series, var: float, cvar: float, 
         hovertemplate="Rendimiento %{x} %<br>%{y} días<extra></extra>"))
     nivel_txt = porcentaje(nivel, 0)
     # El CVaR siempre queda a la izquierda del VaR: cada etiqueta hacia su lado para que no se pisen.
-    for valor, etiqueta, guion, lado in ((var, f"VaR {nivel_txt}: −{porcentaje(var)}", "dash", "top right"),
-                                         (cvar, f"CVaR {nivel_txt}: −{porcentaje(cvar)}", "dot", "top left")):
+    for valor, etiqueta, guion, lado in ((var, f"VaR {nivel_txt}: {porcentaje(-var)}", "dash", "top right"),
+                                         (cvar, f"CVaR {nivel_txt}: {porcentaje(-cvar)}", "dot", "top left")):
         if np.isfinite(valor):
             figura.add_vline(x=-valor * 100, line=dict(color=t["alto"], width=2, dash=guion),
                              annotation=dict(text=etiqueta, font=dict(color=t["texto"]), yanchor="top",

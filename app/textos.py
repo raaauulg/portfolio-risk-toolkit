@@ -5,12 +5,13 @@ AYUDA = {
             "funciona sin Internet. En directo: descarga de Yahoo Finance y FRED con el toolkit.",
     "activos": "Hasta 8 activos de una sola moneda. El toolkit no convierte divisas y rechaza "
                "carteras que las mezclan.",
-    "tickers": "Símbolos de Yahoo Finance separados por comas, por ejemplo: AAPL, MSFT, SAN.MC. "
+    "tickers": "Acciones e índices de Yahoo Finance separados por comas, por ejemplo: AAPL, MSFT, ^GSPC. "
+               "Los índices se reconocen por el prefijo ^ de Yahoo. "
                "Los símbolos repetidos se consideran una sola vez, sin distinguir mayúsculas.",
     "desde": "Primera fecha del análisis (incluida).",
     "hasta": "Última fecha del análisis (incluida).",
     "benchmark": "Índice de referencia para comparar la cartera. Las métricas se calculan sobre "
-                 "las fechas en que cotizan a la vez la cartera y el índice, sin rellenar huecos.",
+                 "las fechas con datos disponibles de la cartera y del índice, sin rellenar huecos.",
     "pesos": "Peso inicial de cada activo, en %. Deben sumar 100 %. La cartera es de comprar y "
              "mantener: se invierte el primer día y no se rebalancea.",
     "n_sims": "Número de escenarios simulados. Más escenarios dan percentiles más estables, "
@@ -41,10 +42,11 @@ GLOSARIO = {
                        "por la volatilidad. Rentabilidad obtenida por cada unidad de riesgo.",
     "Caída máxima (drawdown)": "Mayor pérdida desde un máximo previo hasta un mínimo posterior. "
                                "Lo peor que habría vivido quien compró en el peor momento.",
-    "VaR histórico": "Pérdida diaria que solo se superó en el (1 − nivel) de los días. Con 95 %: "
-                     "uno de cada veinte días se perdió más que esto.",
-    "CVaR histórico": "Pérdida media de los días que superaron el VaR. Mide cómo de malos son los "
-                      "días malos.",
+    "VaR histórico": "Umbral de pérdida diaria estimado con los rendimientos históricos. Al 95 %, "
+                     "delimita aproximadamente el 5 % de los peores días. Puede ser negativo si "
+                     "incluso esos rendimientos fueron positivos.",
+    "CVaR histórico": "Pérdida media de los días que alcanzan o superan el VaR. Resume la "
+                      "gravedad de la cola de pérdidas históricas.",
     "t de Student": "Distribución parecida a la normal pero con colas más gruesas: los movimientos "
                     "extremos son más probables, como en los mercados reales.",
     "nu (grados de libertad)": "Controla el grosor de las colas de la t de Student. Con nu = 5 "
@@ -65,17 +67,18 @@ ESTADO_VACIO = ("Elige un preset en la barra lateral (por ejemplo, **Demo de la 
                 "o configura los tres pasos y pulsa **Calcular**.")
 
 ARQUITECTURA = [
-    "El toolkit separa capas: los adaptadores convierten cada API en `SeriePrecios`, la "
-    "`Cartera` valida y delega, y los módulos de limpieza, Monte Carlo e informes hacen los "
-    "cálculos sin conocer ni las APIs ni la cartera.",
+    "El toolkit separa capas: los adaptadores crean `SeriePrecios` o `SerieIndicador` según "
+    "el dato. La `Cartera` agrupa precios, valida y delega; los módulos de limpieza, Monte Carlo "
+    "e informes hacen los cálculos sin conocer ni las APIs ni la cartera.",
     "Este dashboard es una capa de presentación más: un consumidor de la API pública del "
-    "toolkit, igual que los scripts de `ejemplos/`. Todas las cifras salen de `Cartera`, "
-    "`reportes` y `SimulationResult`.",
+    "toolkit, igual que los scripts de `ejemplos/`. Las métricas, los informes y las simulaciones "
+    "proceden del núcleo; `app/transformaciones.py` deriva las series auxiliares para dibujar.",
     "**Este dashboard no modifica ni una línea de `src/`.** Se añadió como un paquete "
     "aparte (`app/`) con dependencias opcionales (`pip install -e \".[app]\"`); "
     "`import miax_toolkit` no carga Streamlit ni Plotly.",
     "Las validaciones también son del toolkit: si unos pesos no suman 100 % o la cartera "
     "mezcla monedas, el aviso que se ve es el mensaje del propio `ValueError`.",
-    "Para añadir una fuente nueva basta con escribir un adaptador que devuelva `SeriePrecios`: "
-    "la cartera, el motor, los informes y este dashboard funcionan sin cambios.",
+    "Un nuevo adaptador de precios que cumpla el contrato de `SeriePrecios` se puede usar sin "
+    "cambiar la cartera, el motor ni los informes. Para ofrecerlo en el dashboard también habría "
+    "que incorporarlo a su carga de datos y sus controles.",
 ]

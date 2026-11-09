@@ -2,11 +2,32 @@
 
 import pandas as pd
 import pytest
+from unittest.mock import patch
 
 from miax_toolkit import SeriePrecios
 
 from app.datos import recortar
 from app.universos import FIN, INICIO, UNIVERSOS
+
+
+@patch("miax_toolkit.extractores.yf.Ticker")
+def test_indice_en_directo_conserva_tipo_y_ajuste(ticker):
+    from app.datos import descargar_en_directo
+
+    ticker.return_value.history.return_value = pd.DataFrame(
+        {"Close": [100.0, 101.0, 99.0]}, index=pd.bdate_range("2025-01-02", periods=3))
+    ticker.return_value.get_history_metadata.return_value = {"currency": "USD"}
+    descargar_en_directo.clear()
+    try:
+        series, referencia = descargar_en_directo(("^GSPC", "AAPL"), "2025-01-01", "2025-02-01", None)
+        assert referencia is None
+        assert series["^GSPC"].tipo_activo == "indice"
+        assert series["^GSPC"].ajuste == "indice_precios"
+        assert series["^GSPC"].unidad == "puntos de indice"
+        assert series["AAPL"].tipo_activo == "accion"
+        assert series["AAPL"].ajuste == "dividendos_y_splits"
+    finally:
+        descargar_en_directo.clear()
 
 
 def test_instantanea_produce_series_de_precios_marcadas(instantanea):

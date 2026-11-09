@@ -90,6 +90,18 @@ def test_figuras_de_monte_carlo(res):
     assert colas.layout.yaxis.type == "log"
 
 
+@pytest.mark.parametrize("perdida, etiqueta, posicion", [
+    (0.02, "-2,0 %", -2.0),
+    (-0.001, "0,1 %", 0.1),
+])
+def test_var_y_cvar_muestran_el_rendimiento_con_el_signo_correcto(perdida, etiqueta, posicion):
+    figura = graficos.distribucion_rendimientos(pd.Series([-.02, .001, .03]),
+                                                perdida, perdida, .95)
+    assert [a.text for a in figura.layout.annotations] == [
+        f"VaR 95 %: {etiqueta}", f"CVaR 95 %: {etiqueta}"]
+    assert [linea.x0 for linea in figura.layout.shapes] == pytest.approx([posicion, posicion])
+
+
 def test_tema_oscuro_cambia_los_colores_de_serie(res):
     claro = graficos.volatilidad_movil(transformaciones.volatilidad_movil(res.valores, 21), 21, "claro")
     oscuro = graficos.volatilidad_movil(transformaciones.volatilidad_movil(res.valores, 21), 21, "oscuro")
