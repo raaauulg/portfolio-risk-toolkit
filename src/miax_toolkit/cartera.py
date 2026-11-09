@@ -1,7 +1,7 @@
 """Modelo de cartera de inversión (apartado 4.3)."""
 
 from dataclasses import dataclass
-from math import isclose, isfinite
+from math import isclose
 
 import pandas as pd
 
@@ -20,28 +20,27 @@ class Cartera:
     pesos: dict[str, float]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.nombre, str) or not self.nombre.strip() or not self.series:
+        self._validar_composicion()
+
+    def _validar_composicion(self) -> None:
+        """Valida también las listas y pesos que se hayan editado tras crearla."""
+        if (not isinstance(self.nombre, str) or not self.nombre.strip()
+                or not isinstance(self.series, list) or not self.series):
             raise ValueError("La cartera necesita un nombre y al menos un activo.")
         if not all(isinstance(serie, SeriePrecios) for serie in self.series):
             raise ValueError("Los activos deben ser objetos SeriePrecios.")
+        if not isinstance(self.pesos, dict):
+            raise ValueError("Los pesos deben ser un diccionario por ticker.")
 
         tickers = [serie.ticker for serie in self.series]
+        if any(not isinstance(t, str) or not t.strip() for t in tickers):
+            raise ValueError("Todos los activos deben tener un ticker no vacío.")
         if len(tickers) != len(set(tickers)):
             raise ValueError("No puede haber activos con el mismo ticker.")
         if set(self.pesos) != set(tickers):
             raise ValueError("Debe existir exactamente un peso por activo.")
 
-        try:
-            pesos = {ticker: float(peso) for ticker, peso in self.pesos.items()}
-        except (TypeError, ValueError) as error:
-            raise ValueError("Los pesos deben ser numéricos.") from error
-        if not all(isfinite(peso) for peso in pesos.values()):
-            raise ValueError("Los pesos deben ser finitos.")
-        if any(peso < 0 for peso in pesos.values()):
-            raise ValueError("Los pesos deben ser no negativos; no se admiten posiciones cortas.")
-        if not isclose(sum(pesos.values()), 1.0, abs_tol=1e-6):
-            raise ValueError("Los pesos de la cartera deben sumar 1.")
-        self.pesos = pesos
+        self.pesos = validar_pesos(self.pesos, tickers).to_dict()
 
     def obtener_precios(self) -> dict[str, pd.Series]:
         """Devuelve {ticker: serie de precios}, para los módulos de análisis."""
@@ -58,6 +57,7 @@ class Cartera:
 
     def _preparar_datos(self):
         """Aplica las mismas restricciones a simulación, informe y gráficos."""
+        self._validar_composicion()
         if any(s.frecuencia != "diaria" for s in self.series):
             raise ValueError("La cartera requiere precios de frecuencia diaria para el análisis.")
         monedas = self.obtener_monedas() or {}

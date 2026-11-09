@@ -17,6 +17,7 @@ no predicciones.
 """
 
 from dataclasses import dataclass, field
+from numbers import Real
 
 import numpy as np
 import pandas as pd
@@ -26,9 +27,9 @@ from .limpieza import validar_pesos, validar_tabla
 DIAS_POR_ANIO = 252
 
 
-# 1. Estimar los parámetros con el histórico
+# Estimación de parámetros históricos
 def estimar_parametros(precios: pd.DataFrame):
-    """Devuelve (mu, sigma, correlacion) anuales a partir de rendimientos logarítmicos."""
+    """Devuelve retorno y volatilidad anualizados, y correlación de rendimientos logarítmicos."""
     validar_tabla(precios)
     rendimientos = np.log(precios).diff().dropna()
     mu = rendimientos.mean() * DIAS_POR_ANIO
@@ -45,9 +46,11 @@ def _aplicar_supuesto(valor, historico: pd.Series, nombre: str) -> pd.Series:
         if desconocidos:
             raise ValueError(f"{nombre}: activos desconocidos {sorted(desconocidos)}.")
         for activo, dato in valor.items():
-            resultado[activo] = dato
+            if isinstance(dato, (bool, np.bool_)) or not isinstance(dato, Real) or not np.isfinite(dato):
+                raise ValueError(f"{nombre} debe contener números reales finitos.")
+            resultado[activo] = float(dato)
     elif valor is not None:
-        if isinstance(valor, bool) or not isinstance(valor, (int, float, np.number)):
+        if isinstance(valor, (bool, np.bool_)) or not isinstance(valor, Real):
             raise ValueError(f"{nombre} debe ser un número, un diccionario o None.")
         resultado[:] = valor
     try:
@@ -59,7 +62,7 @@ def _aplicar_supuesto(valor, historico: pd.Series, nombre: str) -> pd.Series:
     return resultado
 
 
-# 2. Generar los shocks t de Student correlacionados
+# Shocks t de Student correlacionados
 def _factor_cholesky(correlacion: pd.DataFrame) -> np.ndarray:
     """Cholesky de la correlación, con un error claro si no se puede calcular."""
     try:
@@ -80,7 +83,7 @@ def _shocks_t_student(generador, n_sims: int, factor: np.ndarray, nu: float) -> 
     return t * np.sqrt((nu - 2) / nu)              # estandarizada: varianza 1
 
 
-# 4. Resultado de la simulación
+# Resultado de la simulación
 @dataclass
 class SimulationResult:
     """Trayectorias simuladas, parámetros usados y resumen.
@@ -93,7 +96,10 @@ class SimulationResult:
     parametros: dict = field(default_factory=dict)
 
     def __post_init__(self):
-        self.trayectorias = np.asarray(self.trayectorias, dtype=float)
+        originales = np.asarray(self.trayectorias)
+        if np.iscomplexobj(originales) or originales.dtype.kind == "b":
+            raise ValueError("Las trayectorias deben contener números reales.")
+        self.trayectorias = np.array(originales, dtype=float, copy=True)
         self._validar()
 
     def _validar(self):
@@ -134,22 +140,25 @@ class SimulationResult:
     def interpretacion(self) -> str:
         """Explica el resumen en palabras."""
         r = self.resumen()
-        dias = self.parametros.get("horizonte", self.trayectorias.shape[1] - 1)
+        dias = self.trayectorias.shape[1] - 1
         return (
             f"{self.nombre}, a {dias} días de mercado, partiendo de {r['valor_inicial']:.2f}:\n"
-            f"- En el 5 % de los escenarios más desfavorables termina por debajo de {r['P5']:.2f} (P5).\n"
-            f"- La mitad de los escenarios termina por encima de {r['P50']:.2f} (P50, mediana).\n"
-            f"- Solo el 5 % de los escenarios supera {r['P95']:.2f} (P95).\n"
+            f"- Percentil 5 del valor final (P5): {r['P5']:.2f}.\n"
+            f"- Mediana del valor final (P50): {r['P50']:.2f}.\n"
+            f"- Percentil 95 del valor final (P95): {r['P95']:.2f}.\n"
             f"- Media muestral de los escenarios: {r['media_escenarios']:.2f} (inestable con colas t).\n"
             f"- Probabilidad de terminar con pérdidas: {r['prob_perdida']:.1%}.\n"
             "Son escenarios posibles según los supuestos del modelo, no una predicción."
         )
 
-    # 5. Visualización
+    # Visualización
     def plot(self, n_trayectorias: int = 50, mostrar: bool = True, ruta=None):
         """Dibuja las trayectorias y la distribución del valor final."""
         import matplotlib.pyplot as plt
 
+        if (isinstance(n_trayectorias, (bool, np.bool_))
+                or not isinstance(n_trayectorias, (int, np.integer)) or n_trayectorias < 1):
+            raise ValueError("n_trayectorias debe ser un entero de al menos 1.")
         p = self.percentiles((5, 25, 50, 75, 95))
         dias = np.arange(len(p))
         azul = "#2a78d6"
@@ -171,13 +180,17 @@ class SimulationResult:
         # Histograma sin el 1 % de cada extremo, para que las colas no aplasten el gráfico
         bajo, alto = np.percentile(self.valores_finales, [1, 99])
         visibles = self.valores_finales[(self.valores_finales >= bajo) & (self.valores_finales <= alto)]
+        # Con dos escenarios distintos, ambos quedan fuera de P1–P99.
+        recortado = len(visibles) > 0 and len(visibles) < len(self.valores_finales)
+        if not len(visibles):
+            visibles = self.valores_finales
         eje2.hist(visibles, bins=40, orientation="horizontal", color=azul)
         r = self.resumen()
         eje2.axhline(r["P5"], color="#e34948", linewidth=1.5, label=f"P5: {r['P5']:.1f}")
         eje2.axhline(r["P50"], color="black", linewidth=1.5, label=f"P50: {r['P50']:.1f}")
         eje2.axhline(r["P95"], color="#1baf7a", linewidth=1.5, label=f"P95: {r['P95']:.1f}")
         eje2.set_xlabel("Nº de escenarios")
-        eje2.set_title("Valor final (P1–P99)", loc="left")
+        eje2.set_title("Valor final (P1–P99)" if recortado else "Valor final (todos)", loc="left")
         eje2.legend(frameon=False, loc="upper right", fontsize=8)
 
         for eje in (eje1, eje2):
@@ -194,7 +207,7 @@ class SimulationResult:
         return figura
 
 
-# 3. Construir las trayectorias
+# Construcción de trayectorias
 def simular_cartera(
     precios: pd.DataFrame,
     pesos: dict,
@@ -217,9 +230,9 @@ def simular_cartera(
     """
     if any(isinstance(x, bool) or not isinstance(x, (int, np.integer)) or x < 1 for x in (n_sims, horizonte)):
         raise ValueError("n_sims y horizonte deben ser enteros de al menos 1.")
-    if not isinstance(nu, (int, float)) or not np.isfinite(nu) or nu <= 2:
+    if isinstance(nu, (bool, np.bool_)) or not isinstance(nu, Real) or not np.isfinite(nu) or nu <= 2:
         raise ValueError("nu debe ser mayor que 2 para que la varianza exista.")
-    if isinstance(v0, bool) or not isinstance(v0, (int, float)) or not np.isfinite(v0) or v0 <= 0:
+    if isinstance(v0, (bool, np.bool_)) or not isinstance(v0, Real) or not np.isfinite(v0) or v0 <= 0:
         raise ValueError("v0 debe ser positivo y finito.")
     if semilla is not None and (isinstance(semilla, bool) or not isinstance(semilla, (int, np.integer)) or semilla < 0):
         raise ValueError("semilla debe ser un entero no negativo o None.")
@@ -232,7 +245,7 @@ def simular_cartera(
     if (sigma < 0).any():
         raise ValueError("La volatilidad no puede ser negativa.")
     # Un activo constante tiene volatilidad cero. Si se impone una volatilidad,
-    # se asume independiente del resto, pues el histórico no permite correlacionarlo.
+    # se usa correlación cero: no implica independencia con una t multivariante.
     correlacion = correlacion.fillna(0.0)
     for activo in correlacion.columns:
         correlacion.loc[activo, activo] = 1.0
@@ -260,13 +273,19 @@ def simular_cartera(
         "n_sims": n_sims, "horizonte": horizonte, "nu": nu, "v0": v0, "semilla": semilla,
         "pesos": dict(zip(precios.columns, w)),
         "retorno": mu.to_dict(), "volatilidad": sigma.to_dict(),
+        "fecha_inicio": precios.index[0].date().isoformat(),
+        "fecha_fin": precios.index[-1].date().isoformat(),
+        "observaciones": len(precios),
     }
     return SimulationResult(nombre, trayectorias, parametros)
 
 
 def simular_activo(precios: pd.Series, v0: float | None = None, **opciones) -> SimulationResult:
     """Simula un solo activo. Por defecto parte de su último precio."""
+    if not isinstance(precios, pd.Series) or precios.empty:
+        raise ValueError("Se necesita una serie de precios no vacía.")
     nombre = str(precios.name or "Activo")
     tabla = precios.to_frame(nombre)
+    validar_tabla(tabla, opciones.get("min_observaciones", 30))
     v0 = float(precios.iloc[-1]) if v0 is None else v0
     return simular_cartera(tabla, {nombre: 1.0}, v0=v0, nombre=nombre, **opciones)

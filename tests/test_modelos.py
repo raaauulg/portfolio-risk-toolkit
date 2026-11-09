@@ -2,6 +2,7 @@
 
 import unittest
 
+import numpy as np
 import pandas as pd
 
 from miax_toolkit.cartera import Cartera
@@ -20,6 +21,20 @@ class TestModelos(unittest.TestCase):
     def test_fecha_obligatoria(self):
         with self.assertRaises(ValueError):
             SeriePrecios("AAA", pd.Series([90, 100, 110]), "ejemplo")
+
+    def test_precios_complejos_se_rechazan_sin_descartar_la_parte_imaginaria(self):
+        datos = pd.Series([90+1j, 100+2j], index=pd.date_range("2025-01-01", periods=2))
+        with self.assertRaisesRegex(ValueError, "reales"):
+            SeriePrecios("AAA", datos, "ejemplo")
+
+    def test_indicador_normaliza_zona_horaria_y_rechaza_nulos(self):
+        from miax_toolkit import SerieIndicador
+        fechas = pd.date_range("2025-01-01", periods=2, tz="Europe/Madrid")
+        serie = SerieIndicador("I", "ESP", pd.Series([1., 2.], index=fechas))
+        self.assertIsNone(serie.valores.index.tz)
+        self.assertEqual(serie.valores.index[0], pd.Timestamp("2025-01-01"))
+        with self.assertRaisesRegex(ValueError, "finitos"):
+            SerieIndicador("I", "ESP", pd.Series([1., np.nan], index=fechas))
 
     def test_cartera_valida(self):
         cartera = Cartera("Mi cartera", [self.serie], {"AAA": 1.0})

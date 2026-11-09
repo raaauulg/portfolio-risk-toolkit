@@ -16,7 +16,7 @@ Cómo leer la notación:
 | `<<dataclass>>` | Clase de datos de Python (`@dataclass`). |
 | `<<módulo>>` | Fichero de Python con funciones, no una clase. Se dibuja como caja para mostrar sus dependencias. |
 | `+` / `-` | Miembro público / interno (prefijo `_` en Python). |
-| `nombre: tipo` | Tipo anotado en el código. `...` indica que se omiten parámetros opcionales. |
+| `nombre: tipo` | Tipo de dato o resultado; algunas funciones lo documentan sin anotación de Python. `...` indica que se omiten parámetros opcionales. |
 
 No hay herencia entre clases: el diseño se basa en composición y delegación
 (véase «Decisiones de diseño» en el README).
@@ -67,7 +67,7 @@ sequenceDiagram
     loop por cada ticker
         E->>Y: Ticker.history(auto_adjust=True)
         Y-->>E: DataFrame con cierres
-        E->>S: SeriePrecios(ticker, precios, fuente, moneda)
+        E->>S: SeriePrecios(ticker, precios, fuente, moneda=...)
         Note over S: __post_init__ valida y calcula media y desviación típica
     end
     E-->>U: dict ticker → SeriePrecios
@@ -85,7 +85,7 @@ sequenceDiagram
 
     U->>C: report(simulacion=resultado, benchmark=...)
     C->>C: _preparar_datos()
-    C->>R: generar_report(precios, pesos, simulacion, diagnóstico, monedas)
+    C->>R: generar_report(precios, pesos, simulacion=..., benchmark=...)
     R-->>C: texto Markdown
     C-->>U: informe Markdown
 
@@ -99,14 +99,18 @@ sequenceDiagram
 Puntos que conviene leer en el diagrama:
 
 - **La cartera no calcula, coordina.** `monte_carlo()`, `report()` y
-  `plots_report()` pasan por `_preparar_datos()`: simulación, informe y
-  gráficos usan exactamente los mismos datos validados y alineados. Después delega en el módulo que sabe
-  hacer el cálculo.
+  `plots_report()` pasan por `_preparar_datos()`: comparten la preparación de
+  los precios de la cartera. Si se proporciona un benchmark, el informe y los
+  gráficos históricos restringen después sus datos a las fechas comunes con
+  esa referencia; esto no recalibra la simulación. A continuación cada método
+  delega en el módulo que realiza el cálculo.
 - **El motor y los informes no conocen `Cartera` ni las APIs.** Reciben una
   tabla de precios y unos pesos. Por eso se pueden probar con datos sintéticos
   y reutilizar con cualquier fuente.
 - **La simulación se pasa al informe, no se recalcula.** `report()` comprueba
-  que el `SimulationResult` corresponde a esa cartera y a sus pesos actuales.
+  que coinciden el nombre de cartera, los tickers y sus pesos. No compara todo
+  el histórico: si se cambian los precios, debe generarse una nueva simulación.
+  El informe muestra las fechas de calibración guardadas en el resultado.
 - **Para un activo individual** el flujo es más corto:
   `SeriePrecios.monte_carlo()` limpia la serie con `limpiar_precios()` y
   delega en `simular_activo()`. `cartera.monte_carlo(activo="AAPL")` reenvía

@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 import requests
 
-from miax_toolkit import SeriePrecios, SerieIndicador, descargar_sp500_fred, descargar_tipo_cambio_bce
+from miax_toolkit import SeriePrecios, SerieIndicador, descargar_sp500_fred, descargar_tipo_cambio_bce, descargar_indicador_fred
 
 
 class _Respuesta:
@@ -75,3 +75,32 @@ def test_bce_sin_observaciones_en_el_rango_da_un_error_de_datos(get):
 def test_error_del_servidor_no_se_confunde_con_falta_de_datos(get):
     with pytest.raises(RuntimeError, match="HTTP 503"):
         descargar_sp500_fred("2025-01-01", "2025-01-10")
+
+
+@pytest.mark.parametrize("codigo", [429, 503])
+@pytest.mark.parametrize("fuente", ["FRED", "BCE"])
+@patch("miax_toolkit.fuentes.requests.get")
+def test_error_http_vacio_no_se_confunde_con_falta_de_datos(get, codigo, fuente):
+    get.return_value = _Respuesta("", status_code=codigo)
+    with pytest.raises(RuntimeError, match=rf"{fuente}.*HTTP {codigo}"):
+        if fuente == "FRED":
+            descargar_sp500_fred("2025-01-01", "2025-01-10")
+        else:
+            descargar_tipo_cambio_bce("USD", "2025-01-01", "2025-01-10")
+
+
+@patch("miax_toolkit.fuentes.requests.get")
+def test_fred_indicador_conserva_unidades_y_omite_huecos(get):
+    get.return_value = _Respuesta("DATE,UNRATE\n2025-01-01,4.1\n2025-02-01,.\n2025-03-01,4.2\n2025-04-01,4.3\n")
+    s = descargar_indicador_fred("UNRATE", "2025-01-01", "2025-04-01", pais="USA", frecuencia="mensual", unidad="%")
+    assert isinstance(s, SerieIndicador)
+    assert s.valores.tolist() == [4.1, 4.2]
+    assert s.frecuencia == "mensual" and s.unidad == "%"
+
+
+@patch("miax_toolkit.fuentes.requests.get")
+def test_csv_con_zona_horaria_se_normaliza(get):
+    get.return_value = _Respuesta("TIME_PERIOD,OBS_VALUE\n2025-01-02T00:00:00+01:00,1.1\n2025-01-03T00:00:00+01:00,1.2\n")
+    s = descargar_tipo_cambio_bce("USD", "2025-01-01", "2025-01-10")
+    assert s.valores.index.tz is None
+    assert s.valores.index[0] == pd.Timestamp("2025-01-02")

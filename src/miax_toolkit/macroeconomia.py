@@ -32,11 +32,18 @@ class SerieIndicador:
             raise ValueError("El indicador necesita observaciones.")
         if not isinstance(self.valores.index, pd.DatetimeIndex) or self.valores.index.hasnans or self.valores.index.has_duplicates:
             raise ValueError("Las fechas del indicador deben ser válidas y únicas.")
-        if not pd.api.types.is_numeric_dtype(self.valores.dtype) or pd.api.types.is_bool_dtype(self.valores.dtype):
-            raise ValueError("El indicador debe ser numérico.")
-        if not np.isfinite(self.valores.to_numpy()).all():
+        if (not pd.api.types.is_numeric_dtype(self.valores.dtype)
+                or pd.api.types.is_bool_dtype(self.valores.dtype)
+                or pd.api.types.is_complex_dtype(self.valores.dtype)):
+            raise ValueError("El indicador debe ser numérico real.")
+        if self.valores.isna().any() or not np.isfinite(self.valores.to_numpy()).all():
             raise ValueError("El indicador debe contener valores finitos.")
         self.valores = self.valores.astype(float).sort_index().copy()
+        if self.valores.index.tz is not None:
+            self.valores.index = self.valores.index.tz_localize(None)
+        self.valores.index = self.valores.index.normalize()
+        if self.valores.index.has_duplicates:
+            raise ValueError("Las fechas del indicador deben ser únicas por día.")
         self.valores.name = self.indicador
 
 
@@ -72,10 +79,21 @@ def descargar_indicador(
     if not isinstance(datos, list) or len(datos) != 2 or not isinstance(datos[1], list):
         raise ValueError("La API del Banco Mundial ha devuelto una respuesta inesperada.")
 
-    observaciones = [
-        (pd.Timestamp(f"{fila['date']}-12-31"), float(fila["value"]))
-        for fila in datos[1] if isinstance(fila, dict) and fila.get("value") is not None
-    ]
+    observaciones = []
+    for fila in datos[1]:
+        if (not isinstance(fila, dict) or "value" not in fila
+                or not re.fullmatch(r"\d{4}", str(fila.get("date", "")))):
+            raise ValueError("El Banco Mundial devolvió una observación anual inválida.")
+        anio = int(fila["date"])
+        if not inicio <= anio <= fin or fila["value"] is None:
+            continue
+        try:
+            if isinstance(fila["value"], bool):
+                raise ValueError("Un booleano no es un indicador.")
+            valor = float(fila["value"])
+        except (TypeError, ValueError) as error:
+            raise ValueError("El Banco Mundial devolvió un valor no numérico.") from error
+        observaciones.append((pd.Timestamp(f"{anio}-12-31"), valor))
     if not observaciones:
         raise ValueError("No hay datos del indicador para el país y periodo solicitados.")
 

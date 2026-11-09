@@ -181,3 +181,52 @@ def test_correlacion_perfecta_se_admite(series):
     resultado = cartera.monte_carlo(n_sims=100, horizonte=5)
 
     assert np.isfinite(resultado.trayectorias).all()
+
+
+@pytest.mark.parametrize("campo", ["retorno", "volatilidad"])
+@pytest.mark.parametrize("valor", [True, "error", None, np.nan, np.inf, 1+2j])
+def test_supuestos_por_activo_invalidos_dan_value_error(series, campo, valor):
+    with pytest.raises(ValueError, match=campo):
+        series[0].monte_carlo(n_sims=2, horizonte=1, **{campo: {"AAA": valor}})
+
+
+def test_pesos_redondeados_no_crean_ni_pierden_capital(series):
+    cartera = Cartera("Redondeada", series, {"AAA": .333333, "BBB": .333333, "CCC": .3333335})
+    r = cartera.monte_carlo(n_sims=2, horizonte=3, retorno=0, volatilidad=0, v0=100)
+    np.testing.assert_allclose(r.trayectorias, 100., rtol=0, atol=1e-12)
+
+
+def test_activo_vacio_rechazado_con_error_claro():
+    with pytest.raises(ValueError, match="no vacía"):
+        simular_activo(pd.Series([], dtype=float))
+
+
+def test_resultado_conserva_el_periodo_de_calibracion(cartera):
+    r = cartera.monte_carlo(n_sims=2, horizonte=1)
+    assert r.parametros["fecha_inicio"] == "2024-01-01"
+    assert r.parametros["fecha_fin"] == cartera.series[0].precios.index[-1].date().isoformat()
+    assert r.parametros["observaciones"] == 250
+
+
+def test_histograma_con_dos_escenarios_no_queda_vacio():
+    import matplotlib.pyplot as plt
+    r = SimulationResult("Dos", np.array([[100., 90.], [100., 110.]]))
+    figura = r.plot(mostrar=False)
+    try:
+        assert sum(p.get_width() for p in figura.axes[1].patches) == 2
+    finally:
+        plt.close(figura)
+
+
+@pytest.mark.parametrize("n", [0, -1, True, 2.5])
+def test_numero_de_trayectorias_visible_debe_ser_entero_positivo(n):
+    r = SimulationResult("Una", np.array([[100., 101.]]))
+    with pytest.raises(ValueError, match="n_trayectorias"):
+        r.plot(n_trayectorias=n, mostrar=False)
+
+
+def test_resultado_no_comparte_el_array_original():
+    datos = np.array([[100., 101.]])
+    r = SimulationResult("Una", datos)
+    datos[0, 1] = -1
+    assert r.valores_finales[0] == 101.

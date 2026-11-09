@@ -26,7 +26,7 @@ def main():
     # Todos los proveedores ofrecen valores, fuente, frecuencia y unidad.
     for serie in [*yahoo.values(), sp500, desempleo, cambio, pib]:
         print(f"{serie.valores.name}: {serie.fuente}, {serie.frecuencia}, {serie.unidad}, {len(serie.valores)} observaciones")
-    print("El S&P 500 de Yahoo y FRED usa el mismo objeto:", type(sp500) is type(yahoo["^GSPC"]))
+    print("El S&P 500 de Yahoo y FRED usa la misma clase:", type(sp500) is type(yahoo["^GSPC"]))
     print("Los indicadores se mantienen separados de los activos de la cartera.")
 
     cartera = Cartera("Cartera AAPL-MSFT", [yahoo["AAPL"], yahoo["MSFT"]], {"AAPL": .6, "MSFT": .4})

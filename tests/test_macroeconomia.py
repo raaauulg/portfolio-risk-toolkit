@@ -36,6 +36,21 @@ class TestBancoMundial(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "No hay datos"):
             descargar_indicador("ESP", "NY.GDP.MKTP.CD", 2022, 2024)
 
+    @patch("miax_toolkit.macroeconomia.urlopen")
+    def test_no_devuelve_anios_fuera_del_intervalo(self, abrir):
+        abrir.return_value = BytesIO(json.dumps([{}, [
+            {"date": "2019", "value": 1}, {"date": "2020", "value": 2},
+            {"date": "2021", "value": 3}, {"date": "2022", "value": 4},
+        ]]).encode())
+        serie = descargar_indicador("ESP", "NY.GDP.MKTP.CD", 2020, 2021)
+        self.assertEqual(serie.valores.tolist(), [2., 3.])
+
+    @patch("miax_toolkit.macroeconomia.urlopen")
+    def test_fila_sin_fecha_da_error_claro(self, abrir):
+        abrir.return_value = BytesIO(json.dumps([{}, [{"value": 2}]]).encode())
+        with self.assertRaisesRegex(ValueError, "observación anual inválida"):
+            descargar_indicador("ESP", "NY.GDP.MKTP.CD", 2020, 2021)
+
     def test_fechas_invalidas(self):
         with self.assertRaises(ValueError):
             descargar_indicador("ESP", "NY.GDP.MKTP.CD", 2025, 2020)

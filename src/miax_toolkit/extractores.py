@@ -25,9 +25,15 @@ def descargar_serie(
     if not isinstance(ticker, str) or not ticker.strip():
         raise ValueError("El ticker debe ser un texto no vacío.")
     ticker = ticker.strip().upper()
+    if not isinstance(tipo_activo, str) or not tipo_activo.strip():
+        raise ValueError("El tipo de activo debe ser un texto no vacío.")
+    if moneda is not None and (not isinstance(moneda, str) or not moneda.strip()):
+        raise ValueError("La moneda debe ser un texto no vacío o None.")
     try:
         fecha_inicio = date.fromisoformat(inicio)
         fecha_fin = date.fromisoformat(fin)
+        if inicio != fecha_inicio.isoformat() or fin != fecha_fin.isoformat():
+            raise ValueError("Formato de fecha no admitido.")
     except (TypeError, ValueError) as error:
         raise ValueError("Las fechas deben tener formato AAAA-MM-DD.") from error
     if fecha_inicio >= fecha_fin:
@@ -41,16 +47,21 @@ def descargar_serie(
     except Exception as error:
         raise RuntimeError(f"No se pudo descargar {ticker} desde Yahoo Finance.") from error
 
-    if datos is None or datos.empty or "Close" not in datos.columns:
+    if not isinstance(datos, pd.DataFrame) or datos.empty or "Close" not in datos.columns:
         raise ValueError(f"Yahoo Finance no devolvió precios de cierre para {ticker}.")
 
     precios = datos["Close"].copy()
+    if (not isinstance(precios, pd.Series) or not pd.api.types.is_numeric_dtype(precios.dtype)
+            or pd.api.types.is_bool_dtype(precios.dtype) or pd.api.types.is_complex_dtype(precios.dtype)):
+        raise ValueError(f"Yahoo Finance devolvió precios no numéricos reales para {ticker}.")
     if not isinstance(precios.index, pd.DatetimeIndex):
         raise ValueError(f"Yahoo Finance devolvió fechas inválidas para {ticker}.")
     if precios.index.tz is not None:
         precios.index = precios.index.tz_localize(None)
     precios.index = precios.index.normalize()
     precios = precios[precios.index.notna()].dropna().sort_index()
+    precios = precios.loc[(precios.index >= pd.Timestamp(fecha_inicio))
+                          & (precios.index < pd.Timestamp(fecha_fin))]
     if precios.index.has_duplicates:
         raise ValueError(f"Yahoo Finance devolvió fechas duplicadas para {ticker}.")
     if (precios <= 0).any():
@@ -107,8 +118,13 @@ def descargar_series(
     if len(simbolos) != len(set(simbolos)):
         raise ValueError("La lista contiene tickers duplicados.")
 
-    tipos = tipos or {}
-    monedas = monedas or {}
+    tipos = {} if tipos is None else tipos
+    monedas = {} if monedas is None else monedas
+    for nombre, opciones in (("tipos", tipos), ("monedas", monedas)):
+        if not isinstance(opciones, dict) or set(opciones) - set(simbolos):
+            raise ValueError(f"{nombre} debe ser un diccionario con tickers del lote en mayúsculas.")
+        if any(not isinstance(v, str) or not v.strip() for v in opciones.values()):
+            raise ValueError(f"Los valores de {nombre} deben ser textos no vacíos.")
     resultado: dict[str, SeriePrecios] = {}
     for ticker in simbolos:
         resultado[ticker] = descargar_serie(

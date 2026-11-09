@@ -30,6 +30,12 @@ class TestDescargaLote(unittest.TestCase):
             descargar_series(["AAPL", "aapl"], "2025-01-01", "2026-01-01")
 
     @patch("miax_toolkit.extractores.descargar_serie")
+    def test_metadatos_con_ticker_erroneo_no_se_ignoran(self, descarga):
+        with self.assertRaisesRegex(ValueError, "tickers del lote"):
+            descargar_series(["AAPL"], "2025-01-01", "2026-01-01", monedas={"aapl": "EUR"})
+        descarga.assert_not_called()
+
+    @patch("miax_toolkit.extractores.descargar_serie")
     def test_error_no_se_silencia(self, descarga):
         descarga.side_effect = RuntimeError("API no disponible")
         with self.assertRaises(RuntimeError):
