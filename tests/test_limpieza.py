@@ -83,3 +83,9 @@ def test_pesos_redondeados_se_normalizan_sin_admitir_desvios_mayores():
     assert pesos.sum() == pytest.approx(1., abs=1e-15)
     with pytest.raises(ValueError, match="sumar 1"):
         validar_pesos({"A": .9}, ["A"])
+
+
+@pytest.mark.parametrize("activos", [["A", "A"], []])
+def test_validar_pesos_rechaza_activos_duplicados_o_vacios(activos):
+    with pytest.raises(ValueError, match="activos deben ser únicos"):
+        validar_pesos({"A": 1.}, activos)

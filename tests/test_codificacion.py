@@ -1,6 +1,6 @@
 """Comprueba que los ficheros de texto del repositorio están en UTF-8 sin BOM.
 
-Evita que vuelva a colarse texto doblemente codificado (mojibake): la "ó"
+Detecta texto doblemente codificado (mojibake): la "ó"
 de "integración" convertida en "A con tilde + 3 volado", que aparece al leer un fichero
 UTF-8 como cp1252 y volver a guardarlo en UTF-8 (p. ej. con Windows PowerShell 5.1).
 """

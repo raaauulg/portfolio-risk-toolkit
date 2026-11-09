@@ -27,9 +27,9 @@ from .limpieza import validar_pesos, validar_tabla
 DIAS_POR_ANIO = 252
 
 
-# 1. Estimar los parámetros con el histórico
+# Estimación de parámetros históricos
 def estimar_parametros(precios: pd.DataFrame):
-    """Devuelve (mu, sigma, correlacion) anuales a partir de rendimientos logarítmicos."""
+    """Devuelve retorno y volatilidad anualizados, y correlación de rendimientos logarítmicos."""
     validar_tabla(precios)
     rendimientos = np.log(precios).diff().dropna()
     mu = rendimientos.mean() * DIAS_POR_ANIO
@@ -62,7 +62,7 @@ def _aplicar_supuesto(valor, historico: pd.Series, nombre: str) -> pd.Series:
     return resultado
 
 
-# 2. Generar los shocks t de Student correlacionados
+# Shocks t de Student correlacionados
 def _factor_cholesky(correlacion: pd.DataFrame) -> np.ndarray:
     """Cholesky de la correlación, con un error claro si no se puede calcular."""
     try:
@@ -83,7 +83,7 @@ def _shocks_t_student(generador, n_sims: int, factor: np.ndarray, nu: float) -> 
     return t * np.sqrt((nu - 2) / nu)              # estandarizada: varianza 1
 
 
-# 4. Resultado de la simulación
+# Resultado de la simulación
 @dataclass
 class SimulationResult:
     """Trayectorias simuladas, parámetros usados y resumen.
@@ -143,15 +143,15 @@ class SimulationResult:
         dias = self.trayectorias.shape[1] - 1
         return (
             f"{self.nombre}, a {dias} días de mercado, partiendo de {r['valor_inicial']:.2f}:\n"
-            f"- En el 5 % de los escenarios más desfavorables termina por debajo de {r['P5']:.2f} (P5).\n"
-            f"- La mitad de los escenarios termina por encima de {r['P50']:.2f} (P50, mediana).\n"
-            f"- Solo el 5 % de los escenarios supera {r['P95']:.2f} (P95).\n"
+            f"- Percentil 5 del valor final (P5): {r['P5']:.2f}.\n"
+            f"- Mediana del valor final (P50): {r['P50']:.2f}.\n"
+            f"- Percentil 95 del valor final (P95): {r['P95']:.2f}.\n"
             f"- Media muestral de los escenarios: {r['media_escenarios']:.2f} (inestable con colas t).\n"
             f"- Probabilidad de terminar con pérdidas: {r['prob_perdida']:.1%}.\n"
             "Son escenarios posibles según los supuestos del modelo, no una predicción."
         )
 
-    # 5. Visualización
+    # Visualización
     def plot(self, n_trayectorias: int = 50, mostrar: bool = True, ruta=None):
         """Dibuja las trayectorias y la distribución del valor final."""
         import matplotlib.pyplot as plt
@@ -207,7 +207,7 @@ class SimulationResult:
         return figura
 
 
-# 3. Construir las trayectorias
+# Construcción de trayectorias
 def simular_cartera(
     precios: pd.DataFrame,
     pesos: dict,
