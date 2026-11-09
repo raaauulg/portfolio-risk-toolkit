@@ -12,10 +12,10 @@ analizar carteras, simular escenarios de Monte Carlo y generar informes, con un 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab.svg)](pyproject.toml)
 [![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
 [![Pruebas: pytest sin red](https://img.shields.io/badge/pruebas-pytest%20sin%20red-success.svg)](#pruebas)
-[![Dashboard: Streamlit](https://img.shields.io/badge/dashboard-Streamlit-ff4b4b.svg)](#dashboard)
+[![Abrir en Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://portfolio-risk-toolkit.streamlit.app/?preset=demo)
 [![Versión 1.0.0](https://img.shields.io/badge/versi%C3%B3n-1.0.0-informational.svg)](pyproject.toml)
 
-[Inicio rápido](#inicio-rápido) · [Uso](#uso-como-librería) · [Dashboard](#dashboard) · [Arquitectura](#arquitectura) · [Funcionamiento](#funcionamiento-en-detalle) · [Hoja de ruta](#hoja-de-ruta) · [Licencia](#licencia)
+[**Demo en vivo**](https://portfolio-risk-toolkit.streamlit.app/?preset=demo) · [Inicio rápido](#inicio-rápido) · [Uso](#uso-como-librería) · [Dashboard](#dashboard) · [Arquitectura](#arquitectura) · [Funcionamiento](#funcionamiento-en-detalle) · [Hoja de ruta](#hoja-de-ruta) · [Licencia](#licencia)
 
 </div>
 
@@ -168,6 +168,8 @@ destino). Los resultados no se versionan.
 
 ## Dashboard
 
+**[Abrir la demo en vivo →](https://portfolio-risk-toolkit.streamlit.app/?preset=demo)**
+
 Aplicación Streamlit para explorar el toolkit sin escribir código. Es un consumidor más de la API pública,
 como los scripts de `ejemplos/`, y no modifica `src/`; sus dependencias son opcionales y `import miax_toolkit` no
 carga Streamlit ni Plotly.
@@ -219,17 +221,6 @@ carga Streamlit ni Plotly.
     distinto del de fallo de conexión.</sub></td>
   </tr>
 </table>
-
-### Despliegue en Streamlit Community Cloud
-
-El repositorio está preparado para publicar el dashboard en [Streamlit Community Cloud](https://streamlit.io/cloud):
-[`requirements.txt`](requirements.txt) instala el toolkit con el extra `app` y `.streamlit/config.toml` aporta el
-tema. Como el modo por defecto usa la instantánea, la aplicación publicada no depende de Yahoo ni de FRED.
-
-1. En [share.streamlit.io](https://share.streamlit.io), *Create app* → *Deploy a public app from GitHub*.
-2. Repositorio y rama del proyecto, archivo principal `app/dashboard.py`.
-3. En *Advanced settings*, Python 3.12.
-4. *Deploy*. Añadir `?preset=demo` a la URL publicada abre la cartera de demostración ya calculada.
 
 ## Arquitectura
 
@@ -486,8 +477,8 @@ instalado el extra `app`.
 
 ## Hoja de ruta
 
-**Dashboard como servicio propio.** Streamlit Community Cloud cubre la demostración pública (véase
-[Despliegue](#despliegue-en-streamlit-community-cloud)). Para un servicio con control total sobre recursos y acceso:
+**Dashboard como servicio propio.** La [demo pública](https://portfolio-risk-toolkit.streamlit.app/?preset=demo) se
+sirve desde Streamlit Community Cloud, que instala el proyecto con `requirements.txt`. Para un servicio con control total sobre recursos y acceso:
 
 1. **Contenedor.** `Dockerfile` con Python 3.12 que instale `.[app]` y arranque Streamlit con
    `--server.address 0.0.0.0 --server.headless true`, con `HEALTHCHECK` sobre `/_stcore/health`. La instantánea va
