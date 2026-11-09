@@ -37,8 +37,10 @@ class SeriePrecios:
             raise ValueError("Los precios deben ser una serie de pandas no vacía.")
         if not isinstance(self.precios.index, pd.DatetimeIndex):
             raise ValueError("Los precios deben tener un índice de fechas.")
-        if not pd.api.types.is_numeric_dtype(self.precios.dtype) or pd.api.types.is_bool_dtype(self.precios.dtype):
-            raise ValueError("Los precios deben ser numéricos.")
+        if (not pd.api.types.is_numeric_dtype(self.precios.dtype)
+                or pd.api.types.is_bool_dtype(self.precios.dtype)
+                or pd.api.types.is_complex_dtype(self.precios.dtype)):
+            raise ValueError("Los precios deben ser numéricos reales.")
 
         validos = self.precios.dropna().astype(float)
         if len(validos) < 2 or not np.isfinite(validos.to_numpy()).all():

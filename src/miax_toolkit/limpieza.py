@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from numbers import Real
 
 
 def limpiar_precios(
@@ -13,8 +14,15 @@ def limpiar_precios(
     """Limpia una serie de precios y devuelve (serie_limpia, resumen)."""
     if not isinstance(serie, pd.Series) or serie.empty:
         raise ValueError("Se necesita una serie de precios no vacía.")
-    if pd.api.types.is_bool_dtype(serie.dtype):
-        raise ValueError("Los valores booleanos no son precios.")
+    if (pd.api.types.is_bool_dtype(serie.dtype) or pd.api.types.is_complex_dtype(serie.dtype)
+            or any(isinstance(x, (bool, np.bool_, complex)) for x in serie.dropna())):
+        raise ValueError("Los precios deben ser reales; no se admiten booleanos ni complejos.")
+    if (isinstance(max_pct_nulos, (bool, np.bool_)) or not isinstance(max_pct_nulos, Real)
+            or not np.isfinite(max_pct_nulos) or not 0 <= max_pct_nulos <= 1):
+        raise ValueError("max_pct_nulos debe estar entre 0 y 1.")
+    if (isinstance(umbral_split, (bool, np.bool_)) or not isinstance(umbral_split, Real)
+            or not np.isfinite(umbral_split) or umbral_split <= 0):
+        raise ValueError("umbral_split debe ser positivo y finito.")
     resumen = []  # aquí iremos apuntando todo lo que se corrige
     serie = serie.copy()  # trabajamos con una copia para no tocar el original
     n_inicial = len(serie)  # para el resumen final
@@ -49,11 +57,15 @@ def limpiar_precios(
     # Fechas de sesión local: no convertimos una sesión a otra zona horaria.
     if serie.index.tz is not None:
         serie.index = serie.index.tz_localize(None)
+    # No convertir cotizaciones intradía en cierres diarios silenciosamente.
+    instantes = serie.index.unique()
+    if instantes.normalize().has_duplicates:
+        raise ValueError("Se requieren precios diarios; hay varios instantes intradía en una sesión.")
     serie.index = serie.index.normalize()
 
     # 2. Ordenar cronológicamente
     if not serie.index.is_monotonic_increasing:
-        serie = serie.sort_index()
+        serie = serie.sort_index(kind="stable")
         resumen.append(f"{nombre}: fechas desordenadas; se han ordenado.")
 
     # 3. Detección y tratamiento de fechas duplicadas
@@ -147,7 +159,13 @@ def alinear_precios(precios):
 
 def validar_pesos(pesos: dict, activos) -> pd.Series:
     """Comprueba que los pesos encajan con los activos y suman 1."""
-    pesos = pd.Series(pesos, dtype=float)
+    try:
+        originales = pd.Series(pesos)
+        if any(isinstance(x, (bool, np.bool_, complex)) for x in originales):
+            raise ValueError("Los pesos deben ser números reales, no booleanos ni complejos.")
+        pesos = originales.astype(float)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Los pesos deben ser numéricos reales.") from error
     if pesos.index.has_duplicates or not len(pesos):
         raise ValueError("Los pesos deben tener activos únicos y no estar vacíos.")
 
@@ -164,7 +182,9 @@ def validar_pesos(pesos: dict, activos) -> pd.Series:
     if not np.isclose(pesos.sum(), 1.0, rtol=0, atol=1e-6):
         raise ValueError(f"Los pesos deben sumar 1 y suman {pesos.sum():.4f}.")
 
-    return pesos.reindex(activos)  # mismo orden que las columnas de precios
+    # Corrige únicamente el redondeo admitido por la tolerancia, para invertir
+    # exactamente el capital inicial sin crear ni perder dinero al primer paso.
+    return pesos.reindex(activos) / pesos.sum()
 
 
 def validar_tabla(precios: pd.DataFrame, min_observaciones: int = 3) -> None:
@@ -181,8 +201,9 @@ def validar_tabla(precios: pd.DataFrame, min_observaciones: int = 3) -> None:
             or fechas.has_duplicates or not fechas.is_monotonic_increasing
             or precios.columns.has_duplicates):
         raise ValueError("Las fechas deben ser válidas, únicas y ordenadas; los activos, únicos.")
-    if any(not pd.api.types.is_numeric_dtype(t) or pd.api.types.is_bool_dtype(t) for t in precios.dtypes):
-        raise ValueError("Los precios deben ser numéricos.")
+    if any(not pd.api.types.is_numeric_dtype(t) or pd.api.types.is_bool_dtype(t)
+           or pd.api.types.is_complex_dtype(t) for t in precios.dtypes):
+        raise ValueError("Los precios deben ser numéricos reales.")
     if not np.isfinite(precios.to_numpy()).all() or (precios <= 0).any().any():
         raise ValueError("Los precios deben ser positivos y finitos, sin valores ausentes.")
     saltos = fechas.to_series().diff().dropna().dt.total_seconds() / 86400

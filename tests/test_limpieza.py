@@ -52,3 +52,34 @@ def test_validar_pesos_ordena_y_rechaza_incoherencias():
         validar_pesos({"A": 0.6, "B": 0.6}, ["A", "B"])
     with pytest.raises(ValueError, match="no coinciden"):
         validar_pesos({"A": 1.0}, ["A", "B"])
+
+
+def test_no_convierte_intradia_en_cierres_sin_avisar():
+    fechas = pd.to_datetime(["2025-01-02 10:00", "2025-01-02 16:00", "2025-01-03 16:00"])
+    with pytest.raises(ValueError, match="intradía"):
+        limpiar_precios(pd.Series([100., 101., 102.], index=fechas))
+
+
+def test_duplicados_conservan_el_ultimo_en_el_orden_original():
+    fechas = pd.to_datetime(["2025-01-03", "2025-01-02", "2025-01-03", "2025-01-02"])
+    limpia, _ = limpiar_precios(pd.Series([100., 90., 103., 95.], index=fechas))
+    assert limpia.tolist() == [95., 103.]
+
+
+@pytest.mark.parametrize("valores", [[True, 100, 101], [1+2j, 100, 101]])
+def test_booleanos_y_complejos_no_se_convierten_en_precios(valores):
+    with pytest.raises(ValueError, match="reales"):
+        limpiar_precios(pd.Series(valores, index=pd.bdate_range("2025-01-01", periods=3)))
+
+
+@pytest.mark.parametrize("opciones", [{"max_pct_nulos": np.nan}, {"max_pct_nulos": 2}, {"umbral_split": -1}])
+def test_umbrales_de_limpieza_invalidos(opciones):
+    with pytest.raises(ValueError):
+        limpiar_precios(pd.Series([100., 101., 102.], index=pd.bdate_range("2025-01-01", periods=3)), **opciones)
+
+
+def test_pesos_redondeados_se_normalizan_sin_admitir_desvios_mayores():
+    pesos = validar_pesos({"A": .333333, "B": .333333, "C": .3333335}, ["A", "B", "C"])
+    assert pesos.sum() == pytest.approx(1., abs=1e-15)
+    with pytest.raises(ValueError, match="sumar 1"):
+        validar_pesos({"A": .9}, ["A"])

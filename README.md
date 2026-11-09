@@ -33,7 +33,7 @@ usando el intérprete de ese entorno; para desarrollo se puede instalar con
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -W error -m pytest -q
 ```
 
 No necesitan Internet: las llamadas a Yahoo, Banco Mundial, FRED y BCE se
@@ -138,6 +138,9 @@ la serie posteriormente, se debe crear un nuevo objeto para recalcularlas.
 `Cartera` es una DataClass que agrupa series y pesos por ticker. Comprueba que
 los activos sean únicos, que exista exactamente un peso por activo y que los
 pesos sean finitos, no negativos y sumen uno (tolerancia `1e-6`).
+Dentro de esa tolerancia, los pesos se normalizan para invertir exactamente
+el capital inicial. La composición se vuelve a validar antes del análisis
+global si se han editado los activos o sus pesos.
 
 Ejemplo completo con precios reales:
 
@@ -179,6 +182,9 @@ Se elige una entrada restringida para evitar interpretaciones ambiguas:
   positivos. Reconoce fechas `AAAA-MM-DD` y `DD-MM-AAAA` y separadores `/` o `.`.
   Quita la zona horaria conservando la fecha local de la sesión. Avisa de
   huecos abundantes y saltos grandes; no corrige posibles splits automáticamente.
+  Rechaza varios instantes distintos de una misma sesión: convertir datos
+  intradía en cierres diarios requiere una decisión previa del usuario.
+  Los booleanos y los números complejos no se interpretan como precios.
 - `alinear_precios` recibe un diccionario de series o un DataFrame. Conserva
   exclusivamente fechas con precio válido para todos los activos, sin rellenar
   festivos. Devuelve la tabla y un diagnóstico de las observaciones descartadas.
@@ -211,16 +217,19 @@ correlación histórica y se generan shocks correlacionados. Una matriz con
 correlaciones perfectas se admite mediante su descomposición espectral.
 
 Un activo constante conserva volatilidad histórica cero. Si se le impone
-volatilidad positiva, se asume independiente de los demás: el histórico
-constante no permite estimar su correlación. La cartera sigue **comprar y
-mantener**, con pesos iniciales y sin rebalanceos.
+volatilidad positiva, se usa correlación cero con los demás: el histórico
+constante no permite estimarla. Esto no implica independencia, porque los
+shocks comparten el factor chi-cuadrado de la t multivariante. La cartera
+sigue **comprar y mantener**, con pesos iniciales y sin rebalanceos.
 
 El resultado incluye trayectorias, P5/P50/P95, media muestral y probabilidad de
 terminar por debajo del capital inicial. Con shocks t exponenciados, la
 esperanza teórica del precio no es finita: **la media de escenarios es
 inestable; se interpretan principalmente mediana y percentiles**. El
-histograma muestra P1–P99 para facilitar su lectura y lo indica en el título;
-los percentiles y resúmenes utilizan todos los escenarios.
+histograma recorta a P1–P99 para facilitar su lectura; si el recorte dejara
+el gráfico vacío, muestra todos los escenarios. Su título indica qué muestra.
+Los percentiles y resúmenes utilizan todos los escenarios. Los parámetros del
+resultado conservan las fechas y el número de observaciones de calibración.
 
 Son escenarios bajo parámetros constantes, no predicciones. La estimación de
 retornos con poca historia es inestable. No se modelan costes, impuestos,
@@ -244,11 +253,17 @@ los peores rendimientos históricos fueron positivos. Las métricas no
 estimables aparecen como `n/d`. Los umbrales de advertencia son configurables,
 no reglas universales de inversión.
 
+La anualización supone **252 observaciones diarias por año**. Tras la alineación,
+un hueco puede hacer que un rendimiento abarque más de una sesión: el toolkit
+no reconstruye ese calendario y la anualización es una aproximación. Una
+historia con muchos huecos debe revisarse antes de interpretar las métricas.
+
 La aportación al riesgo es una **aproximación con los pesos iniciales fijos**,
 distinta de la evolución de los pesos en comprar y mantener. La valoración
 histórica parte de base 100. Una simulación incluida en el informe mantiene
 su capital, supuestos y periodo de calibración; añadir un benchmark al informe
-no recalibra esa simulación.
+no recalibra esa simulación. El informe muestra ese periodo por separado y
+conserva también el diagnóstico de limpieza del benchmark.
 
 `cartera.plots_report()` permite seleccionar `graficos` entre `rendimiento`,
 `correlacion`, `evolucion` y `riesgo`; configurar `ventana_volatilidad`,
@@ -297,7 +312,8 @@ reproducir los seis bloques del taller.
 requisitos de cada objeto. Los controles necesarios para analizar una cartera
 (frecuencia, moneda y precios limpios) se aplican antes de cada análisis.
 Los objetos son mutables: cambiar sus atributos no vuelve a ejecutar
-`__post_init__`. `SeriePrecios` calcula además la media y la desviación típica
+`__post_init__`; la cartera sí revalida su composición al analizarla.
+`SeriePrecios` calcula además la media y la desviación típica
 al instanciarse, como pide el apartado 4.3.
 
 **Composición y delegación en lugar de herencia.** `Cartera` *agrega* objetos
@@ -393,6 +409,8 @@ A partir de ahí, la nueva serie funciona igual que una de Yahoo:
   [ficha de UNRATE](https://fred.stlouisfed.org/series/UNRATE) y
   [ficha de SP500](https://fred.stlouisfed.org/series/SP500).
 - [BCE: ejemplos de la API SDMX](https://data.ecb.europa.eu/help/api/data-examples).
+- [Distribución t multivariante: definición y matriz semidefinida](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_t.html)
+  (referencia matemática; el motor se implementa con NumPy y no requiere SciPy).
 
 Se aplican las condiciones de cada proveedor. El repositorio contiene los
 adaptadores y ejemplos, no copias de sus históricos. El diseño de la ingesta
