@@ -2,12 +2,11 @@
 
 ![Diagrama UML de clases y dependencias](arquitectura.svg)
 
-El rombo vacío representa la agregación de una o varias `SeriePrecios` en
-`Cartera`. Una serie existe independientemente y puede utilizarse en varias
-carteras. Las flechas discontinuas representan dependencias entre módulos o
-clases; las etiquetas indican creación, validación o delegación.
-
-Cómo leer la notación:
+El diagrama recoge las clases y módulos de `src/miax_toolkit/` y las
+dependencias entre ellos. La única relación estructural es la agregación de una
+o varias `SeriePrecios` en `Cartera`: una serie existe por sí misma y puede
+formar parte de varias carteras. Las demás flechas son dependencias, y su
+etiqueta indica si el origen crea, valida o delega en el destino.
 
 | Elemento | Significado |
 | --- | --- |
@@ -23,26 +22,39 @@ No hay herencia entre clases: el diseño se basa en composición y delegación
 
 ## Separación de responsabilidades
 
-- Los adaptadores convierten respuestas externas en `SeriePrecios` o
-  `SerieIndicador`. Ambos ofrecen `valores`, `fuente`, `frecuencia` y `unidad`.
-- `SeriePrecios.valores` es una propiedad que accede a `precios`, sin duplicarlos.
-  Los estadísticos de precios se calculan automáticamente al crear la serie.
-- `Cartera` agrupa los activos y pesos y prepara los datos antes de delegar.
-  Los indicadores macroeconómicos no se agregan como activos de inversión.
-- El motor recibe precios y pesos, sin conocer APIs ni importar `Cartera`.
-  Devuelve `SimulationResult`, que reúne escenarios y visualización.
-- Los informes reciben datos ya preparados y, opcionalmente, una simulación.
-  No importan `Cartera`. Comparten validaciones y alineación con el análisis.
+Dentro del paquete, solo los adaptadores (`extractores.py`, `macroeconomia.py`
+y `fuentes.py`) acceden a las APIs. Cada uno convierte la respuesta del
+proveedor en una `SeriePrecios` o una `SerieIndicador`, y ambas clases exponen
+`valores`, `fuente`, `frecuencia` y `unidad`, de modo que el resto del código
+trata igual cualquier fuente. En `SeriePrecios`, `valores` es una propiedad que
+devuelve la propia serie `precios`, sin copiarla, y la media y la desviación
+típica se calculan en `__post_init__`, al crear el objeto.
+
+`Cartera` agrupa los activos y sus pesos, valida la composición y prepara los
+datos, pero no calcula: delega en `monte_carlo.py` y `reportes.py`. Solo admite
+objetos `SeriePrecios`, así que los indicadores macroeconómicos no pueden
+entrar en una cartera como si fueran activos de inversión.
+
+El motor de Monte Carlo y el módulo de informes reciben una tabla de precios y
+unos pesos, sin conocer las APIs ni importar `Cartera`. Por eso se pueden
+probar con datos sintéticos y reutilizar con cualquier fuente. El motor
+devuelve un `SimulationResult`, que guarda los escenarios y sabe resumirlos y
+dibujarlos; los informes pueden recibir además una simulación ya calculada.
+Ambos módulos reutilizan las validaciones de `limpieza.py`.
 
 ## Flujo del sistema
 
-1. Yahoo, Banco Mundial, FRED o BCE → adaptador → objeto interno normalizado.
-2. Series de precios + ponderaciones → `Cartera`.
-3. Cartera → validación de frecuencia y moneda → limpieza y fechas comunes.
-4. Precios preparados → motor Monte Carlo → `SimulationResult` → trayectorias
-   y distribución del valor final.
-5. Precios preparados y simulación opcional → informes → Markdown y gráficos
-   históricos de rendimiento, correlación, evolución y riesgo.
+1. Un adaptador descarga los datos de Yahoo Finance, el Banco Mundial, FRED o
+   el BCE y los devuelve como objeto interno normalizado.
+2. Con varias series de precios y sus ponderaciones se construye una `Cartera`.
+3. Antes de cada cálculo, la cartera comprueba que todas las series son
+   diarias y están en la misma moneda, limpia cada serie y se queda con las
+   fechas comunes.
+4. El motor de Monte Carlo estima los parámetros con esos precios y devuelve
+   un `SimulationResult` con las trayectorias y la distribución del valor final.
+5. El módulo de informes genera, con los mismos precios y opcionalmente con la
+   simulación, el informe en Markdown y los gráficos históricos de rendimiento,
+   correlación, evolución y riesgo.
 
 ### Diagrama de secuencia: del dato al informe
 
@@ -96,38 +108,45 @@ sequenceDiagram
     C-->>U: dict nombre → figura
 ```
 
-Puntos que conviene leer en el diagrama:
+`docs/secuencia.svg` es este mismo diagrama renderizado con mermaid-cli; lo
+muestra la página de arquitectura del dashboard y hay que regenerarlo si se
+cambia el bloque anterior.
 
-- **La cartera no calcula, coordina.** `monte_carlo()`, `report()` y
-  `plots_report()` pasan por `_preparar_datos()`: comparten la preparación de
-  los precios de la cartera. Si se proporciona un benchmark, el informe y los
-  gráficos históricos restringen después sus datos a las fechas comunes con
-  esa referencia; esto no recalibra la simulación. A continuación cada método
-  delega en el módulo que realiza el cálculo.
-- **El motor y los informes no conocen `Cartera` ni las APIs.** Reciben una
-  tabla de precios y unos pesos. Por eso se pueden probar con datos sintéticos
-  y reutilizar con cualquier fuente.
-- **La simulación se pasa al informe, no se recalcula.** `report()` comprueba
-  que coinciden el nombre de cartera, los tickers y sus pesos. No compara todo
-  el histórico: si se cambian los precios, debe generarse una nueva simulación.
-  El informe muestra las fechas de calibración guardadas en el resultado.
-- **Para un activo individual** el flujo es más corto:
-  `SeriePrecios.monte_carlo()` limpia la serie con `limpiar_precios()` y
-  delega en `simular_activo()`. `cartera.monte_carlo(activo="AAPL")` reenvía
-  a ese mismo método.
+`monte_carlo()`, `report()` y `plots_report()` empiezan llamando a
+`_preparar_datos()`, de modo que simulación, informe y gráficos parten de la
+misma tabla de precios; después cada método delega en el módulo que hace el
+cálculo. Si se pasa un benchmark, el informe y los gráficos restringen además
+sus datos a las fechas comunes con esa referencia, lo que no afecta a la
+calibración de la simulación.
 
-La media y desviación de **precios** se distinguen de la volatilidad y
-correlación de **rendimientos** calculadas en el análisis. Los ejemplos guardan
-sus salidas en una carpeta excluida de Git.
+La simulación llega al informe ya calculada. `report()` comprueba que
+corresponde a la cartera (mismo nombre, mismos tickers y mismos pesos), pero no
+compara el histórico: si cambian los precios, hay que volver a simular. El
+informe muestra las fechas de calibración guardadas en el resultado.
 
-El [archivo DOT](arquitectura.dot) es la fuente editable del diagrama UML.
-El SVG se incluye para que pueda verse directamente en GitHub. Si se desea
-regenerarlo con Graphviz (opcional, no necesario para ejecutar el toolkit):
+Para un activo individual el flujo es más corto y no pasa por
+`_preparar_datos()`: `SeriePrecios.monte_carlo()` limpia la serie con
+`limpiar_precios()` y delega en `simular_activo()`, y
+`cartera.monte_carlo(activo="AAPL")` reenvía la llamada a ese mismo método.
+
+La media y la desviación típica de `SeriePrecios` se calculan sobre el nivel
+de precios y solo describen la serie. La volatilidad y la correlación del
+análisis y del Monte Carlo se calculan sobre rendimientos.
+
+Los ejemplos de `ejemplos/` guardan por defecto sus salidas en `resultados/`,
+carpeta excluida de Git.
+
+## Regenerar el diagrama de clases
+
+La fuente editable del diagrama UML es [arquitectura.dot](arquitectura.dot).
+El SVG se versiona para que se vea directamente en GitHub. Graphviz no hace
+falta para usar el toolkit, solo para regenerar el diagrama:
 
 ```sh
 dot -Tsvg docs/arquitectura.dot -o docs/arquitectura.svg
 ```
 
-Sin Graphviz instalado, también puede generarse con Node.js mediante
+Sin Graphviz instalado, puede usarse
 [`@viz-js/viz`](https://www.npmjs.com/package/@viz-js/viz), Graphviz compilado
-a WebAssembly. El SVG actual se generó así (Graphviz 16.1.0).
+a WebAssembly para Node.js. Según su cabecera, el SVG actual se generó con
+Graphviz 14.1.3.

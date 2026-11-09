@@ -1,4 +1,4 @@
-"""Pruebas básicas de las DataClasses con datos sintéticos."""
+"""Pruebas de SeriePrecios, SerieIndicador y Cartera con datos sintéticos."""
 
 import unittest
 

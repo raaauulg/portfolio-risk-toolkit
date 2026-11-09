@@ -1,6 +1,6 @@
 """Ejemplo reproducible sin Internet: modelado, limpieza, simulación e informes.
 
-Todos los precios son sintéticos y se identifican como tales.
+Los precios son sintéticos (fuente "sintetica") y se generan con semilla fija.
 """
 import argparse
 from pathlib import Path

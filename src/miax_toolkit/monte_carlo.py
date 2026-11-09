@@ -27,7 +27,6 @@ from .limpieza import validar_pesos, validar_tabla
 DIAS_POR_ANIO = 252
 
 
-# Estimación de parámetros históricos
 def estimar_parametros(precios: pd.DataFrame):
     """Devuelve retorno y volatilidad anualizados, y correlación de rendimientos logarítmicos."""
     validar_tabla(precios)
@@ -62,7 +61,6 @@ def _aplicar_supuesto(valor, historico: pd.Series, nombre: str) -> pd.Series:
     return resultado
 
 
-# Shocks t de Student correlacionados
 def _factor_cholesky(correlacion: pd.DataFrame) -> np.ndarray:
     """Cholesky de la correlación, con un error claro si no se puede calcular."""
     try:
@@ -83,7 +81,6 @@ def _shocks_t_student(generador, n_sims: int, factor: np.ndarray, nu: float) -> 
     return t * np.sqrt((nu - 2) / nu)              # estandarizada: varianza 1
 
 
-# Resultado de la simulación
 @dataclass
 class SimulationResult:
     """Trayectorias simuladas, parámetros usados y resumen.
@@ -151,7 +148,6 @@ class SimulationResult:
             "Son escenarios posibles según los supuestos del modelo, no una predicción."
         )
 
-    # Visualización
     def plot(self, n_trayectorias: int = 50, mostrar: bool = True, ruta=None):
         """Dibuja las trayectorias y la distribución del valor final."""
         import matplotlib.pyplot as plt
@@ -207,7 +203,6 @@ class SimulationResult:
         return figura
 
 
-# Construcción de trayectorias
 def simular_cartera(
     precios: pd.DataFrame,
     pesos: dict,
@@ -255,8 +250,8 @@ def simular_cartera(
     sigma_d = sigma.to_numpy() / np.sqrt(DIAS_POR_ANIO)
     generador = np.random.default_rng(semilla)
 
-    # Vectorizado: cada iteración avanza un día para TODAS las simulaciones a la vez.
-    # (Generar todos los días de golpe ocuparía demasiada memoria con muchos activos.)
+    # Bucle por días, vectorizado sobre las simulaciones: generar todos los shocks
+    # de golpe ocuparía n_sims x horizonte x n_activos valores en memoria.
     valor_activos = np.tile(w * v0, (n_sims, 1))  # dinero en cada activo, forma (n_sims, n_activos)
     trayectorias = np.empty((n_sims, horizonte + 1))
     trayectorias[:, 0] = v0

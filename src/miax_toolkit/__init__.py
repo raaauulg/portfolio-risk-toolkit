@@ -13,7 +13,6 @@ from .monte_carlo import (
     simular_cartera,
 )
 
-# Ordenado por capas: ingesta -> modelos -> preprocesado -> análisis.
 __all__ = [
     # Ingesta
     "descargar_serie", "descargar_series", "descargar_indicador",

@@ -8,7 +8,7 @@ import pandas as pd
 from .limpieza import alinear_precios, validar_pesos, validar_tabla
 from .modelos import SeriePrecios
 from .monte_carlo import SimulationResult, simular_cartera
-from .reportes import SECCIONES, GRAFICOS, generar_report, generar_plots
+from .reportes import GRAFICOS, SECCIONES, generar_plots, generar_report
 
 
 @dataclass
@@ -23,7 +23,7 @@ class Cartera:
         self._validar_composicion()
 
     def _validar_composicion(self) -> None:
-        """Valida también las listas y pesos que se hayan editado tras crearla."""
+        """Se repite antes de cada análisis: series y pesos pueden editarse tras crear la cartera."""
         if (not isinstance(self.nombre, str) or not self.nombre.strip()
                 or not isinstance(self.series, list) or not self.series):
             raise ValueError("La cartera necesita un nombre y al menos un activo.")
@@ -84,11 +84,11 @@ class Cartera:
     ) -> SimulationResult:
         """Simula la cartera con Monte Carlo (apartado 4.4).
 
-        Fachada: la cartera solo prepara los datos (limpia y alinea sus precios)
-        y delega la matemática en monte_carlo.simular_cartera. Parámetros como en
-        simular_cartera: retorno y volatilidad anuales (None = histórico), horizonte
-        en días de mercado, v0 = valor inicial de la cartera.
-        min_observaciones: fechas comunes mínimas para estimar los parámetros.
+        Limpia y alinea los precios y delega en monte_carlo.simular_cartera, con
+        sus mismos parámetros: retorno y volatilidad anuales (None = histórico) y
+        horizonte en días de mercado. v0 es el valor inicial (100 si es None) y
+        min_observaciones, el mínimo de fechas comunes para estimar parámetros.
+        Con activo se simula solo ese activo, partiendo de su último precio.
         """
         if activo is not None:
             for serie in self.series:

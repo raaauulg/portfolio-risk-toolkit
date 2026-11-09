@@ -23,10 +23,7 @@ class SeriePrecios:
 
     @property
     def valores(self) -> pd.Series:
-        """Acceso común a los datos, también disponible en SerieIndicador.
-
-        Es la misma serie que precios, sin duplicar sus datos.
-        """
+        """Alias de precios (sin copia), con el mismo nombre que en SerieIndicador."""
         return self.precios
 
     def __post_init__(self) -> None:
@@ -57,13 +54,14 @@ class SeriePrecios:
     def monte_carlo(self, **opciones):
         """Simula este activo con Monte Carlo (apartado 4.4).
 
-        Delega en monte_carlo.simular_activo, que por defecto parte del último
-        precio. Acepta las mismas opciones (n_sims, horizonte, retorno,
-        volatilidad, nu, v0, semilla). Devuelve un SimulationResult.
+        Limpia los precios y delega en monte_carlo.simular_activo, que por
+        defecto parte del último precio y acepta las mismas opciones (n_sims,
+        horizonte, retorno, volatilidad, nu, v0, semilla, min_observaciones).
+        Devuelve un SimulationResult.
         """
         # Import local: el modelo no depende del motor al importarse el módulo.
-        from .monte_carlo import simular_activo
         from .limpieza import limpiar_precios
+        from .monte_carlo import simular_activo
 
         if self.frecuencia != "diaria":
             raise ValueError("Monte Carlo requiere precios de frecuencia diaria.")

@@ -1,4 +1,5 @@
-"""Cuatro fuentes reales, formatos comunes y una cartera. Requiere Internet."""
+"""Descarga datos de Yahoo Finance, Banco Mundial, FRED y BCE, muestra sus
+metadatos comunes y analiza una cartera AAPL-MSFT. Requiere Internet."""
 import argparse
 from pathlib import Path
 
@@ -27,8 +28,8 @@ def main():
     for serie in [*yahoo.values(), sp500, desempleo, cambio, pib]:
         print(f"{serie.valores.name}: {serie.fuente}, {serie.frecuencia}, {serie.unidad}, {len(serie.valores)} observaciones")
     print("El S&P 500 de Yahoo y FRED usa la misma clase:", type(sp500) is type(yahoo["^GSPC"]))
-    print("Los indicadores se mantienen separados de los activos de la cartera.")
 
+    # Desempleo, tipo de cambio y PIB no entran en la cartera: Cartera solo admite SeriePrecios.
     cartera = Cartera("Cartera AAPL-MSFT", [yahoo["AAPL"], yahoo["MSFT"]], {"AAPL": .6, "MSFT": .4})
     simulacion = cartera.monte_carlo(n_sims=1000, horizonte=126, semilla=2026)
     salida.mkdir(parents=True, exist_ok=True)

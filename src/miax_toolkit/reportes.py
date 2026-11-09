@@ -8,9 +8,10 @@ La cartera se valora como "comprar y mantener" (igual que el Monte Carlo):
 se invierte según los pesos el primer día y no se rebalancea.
 """
 
+from numbers import Real
+
 import numpy as np
 import pandas as pd
-from numbers import Real
 
 from .limpieza import limpiar_precios, validar_pesos, validar_tabla
 
@@ -35,8 +36,6 @@ COLORES = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
            "#e87ba4", "#008300", "#6250d6", "#e34948")
 
 
-# ---------- Métricas ----------
-
 def valor_cartera(precios: pd.DataFrame, pesos: pd.Series, v0: float = 100.0) -> pd.Series:
     """Valor de la cartera comprando el primer día y manteniendo: v0 * suma(peso * P(t) / P(0))."""
     pesos = pd.Series(pesos, dtype=float).reindex(precios.columns)
@@ -45,7 +44,12 @@ def valor_cartera(precios: pd.DataFrame, pesos: pd.Series, v0: float = 100.0) ->
 
 
 def metricas(valores: pd.Series, tasa_libre: float = 0.0, nivel_var: float = 0.95) -> dict:
-    """Métricas principales de una serie de valores (precio o valor de cartera)."""
+    """Métricas de una serie de valores (precio o valor de cartera).
+
+    Usa rendimientos simples diarios y anualiza con 252 sesiones; tasa_libre es
+    anual. var y cvar son pérdidas diarias históricas, en positivo. Con menos de
+    dos rendimientos solo se calculan rent_total y caida_maxima (el resto, NaN).
+    """
     if not isinstance(valores, pd.Series) or valores.empty or not np.isfinite(valores).all() or (valores <= 0).any():
         raise ValueError("Se necesitan valores positivos y finitos para calcular métricas.")
     if (any(isinstance(x, (bool, np.bool_)) or not isinstance(x, Real)
@@ -81,14 +85,17 @@ def metricas(valores: pd.Series, tasa_libre: float = 0.0, nivel_var: float = 0.9
 
 
 def contribucion_riesgo(precios: pd.DataFrame, pesos: pd.Series) -> pd.Series:
-    """Aproximación con pesos iniciales fijos; no sigue su deriva en comprar y mantener."""
+    """Aportación de cada activo a la varianza de la cartera, en tanto por uno.
+
+    Aproximación con pesos iniciales fijos: no sigue su deriva en comprar y mantener.
+    """
     pesos = pd.Series(pesos, dtype=float).reindex(precios.columns)
     cov = precios.pct_change().dropna().cov()
     aportes = pesos * (cov @ pesos)
     return aportes / aportes.sum() if aportes.sum() > 0 else aportes * np.nan
 
 
-# ---------- Formato ----------
+# Formato con coma decimal; "n/d" para valores no finitos.
 
 def _pct(x, decimales=2):
     if x is None or not np.isfinite(x):
@@ -116,8 +123,6 @@ def _pares_correlacion(correlacion: pd.DataFrame):
              if np.isfinite(correlacion.iloc[i, j])]
     return sorted(pares, key=lambda p: p[2], reverse=True)
 
-
-# ---------- Informe ----------
 
 def _advertencias(m, pesos, riesgo, correlacion, umbrales, diagnostico, monedas, simulacion):
     """Lista de (nivel, texto) ordenada de más a menos grave."""
@@ -309,8 +314,6 @@ def generar_report(
             archivo.write(informe)
     return informe
 
-
-# ---------- Gráficos ----------
 
 def _estilo(eje):
     eje.spines[["top", "right"]].set_visible(False)

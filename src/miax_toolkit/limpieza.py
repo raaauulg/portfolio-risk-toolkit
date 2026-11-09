@@ -1,8 +1,9 @@
 """Limpieza y preprocesado de series de precios."""
 
+from numbers import Real
+
 import numpy as np
 import pandas as pd
-from numbers import Real
 
 
 def limpiar_precios(
@@ -11,7 +12,14 @@ def limpiar_precios(
     max_pct_nulos: float = 0.20,
     umbral_split: float = 0.50,
 ):
-    """Limpia una serie de precios y devuelve (serie_limpia, resumen)."""
+    """Limpia una serie de precios y devuelve (serie_limpia, resumen).
+
+    Ordena las fechas, conserva el último valor de cada fecha duplicada y
+    elimina precios no numéricos, infinitos, no positivos o ausentes, sin
+    rellenar huecos. Superar max_pct_nulos o umbral_split (salto logarítmico
+    diario) solo añade líneas "AVISO" al resumen. Lanza ValueError si hay
+    varios instantes intradía en una misma sesión.
+    """
     if not isinstance(serie, pd.Series) or serie.empty:
         raise ValueError("Se necesita una serie de precios no vacía.")
     if (pd.api.types.is_bool_dtype(serie.dtype) or pd.api.types.is_complex_dtype(serie.dtype)
@@ -27,14 +35,11 @@ def limpiar_precios(
     serie = serie.copy()  # La limpieza no modifica la entrada.
     n_inicial = len(serie)
 
-    # 1. Validación y depuración de fechas
     if not isinstance(serie.index, pd.DatetimeIndex):
         original = pd.Series(serie.index.astype(str))
-
-        # Depurar la escritura: quitar espacios y unificar separadores
         textos = original.str.strip().str.replace(r"[./]", "-", regex=True)
 
-        # Probar los dos formatos admitidos: año-mes-día y día-mes-año
+        # Formatos admitidos: año-mes-día y, si no encaja, día-mes-año.
         fechas = pd.to_datetime(textos, format="%Y-%m-%d", errors="coerce")
         fechas = fechas.fillna(pd.to_datetime(textos, format="%d-%m-%Y", errors="coerce"))
 
@@ -63,18 +68,15 @@ def limpiar_precios(
         raise ValueError("Se requieren precios diarios; hay varios instantes intradía en una sesión.")
     serie.index = serie.index.normalize()
 
-    # 2. Ordenar cronológicamente
     if not serie.index.is_monotonic_increasing:
         serie = serie.sort_index(kind="stable")
         resumen.append(f"{nombre}: fechas desordenadas; se han ordenado.")
 
-    # 3. Detección y tratamiento de fechas duplicadas
     duplicadas = serie.index.duplicated(keep="last").sum()
     if duplicadas > 0:
         serie = serie[~serie.index.duplicated(keep="last")]
         resumen.append(f"{nombre}: {duplicadas} fecha(s) duplicada(s); se conserva el último valor.")
 
-    # 4. Validación de precios: numéricos y positivos
     if not pd.api.types.is_numeric_dtype(serie):
         textos = serie.astype(str).str.strip().str.replace(",", ".", regex=False)
         numeros = pd.to_numeric(textos, errors="coerce")
@@ -92,7 +94,6 @@ def limpiar_precios(
     if no_positivos > 0:
         resumen.append(f"{nombre}: {no_positivos} precio(s) <= 0 convertido(s) en NA.")
 
-    # 5. Detección y tratamiento de NA
     nulos = serie.isna().sum()
     if nulos > 0:
         pct_nulos = nulos / len(serie)
@@ -104,7 +105,7 @@ def limpiar_precios(
                 f"(más del {max_pct_nulos:.0%}); revisa la fuente."
             )
 
-    # 6. Aviso de posibles splits (no se modifica ningún dato)
+    # Un posible split solo se avisa: corregirlo exigiría conocer el factor.
     saltos = np.log(serie).diff().abs()
     fechas_salto = saltos[saltos > umbral_split].index
     for fecha in fechas_salto:
@@ -113,7 +114,6 @@ def limpiar_precios(
             "puede ser un split sin ajustar."
         )
 
-    # 7. Resumen de la limpieza
     resumen.append(f"{nombre}: se conservan {len(serie)} de {n_inicial} observaciones.")
 
     return serie, resumen
@@ -139,11 +139,10 @@ def alinear_precios(precios):
         limpias[activo], avisos = limpiar_precios(serie, nombre=activo)
         resumen.extend(avisos)
 
-    # Una columna por activo; donde un activo no cotiza ese día queda NA
     tabla = pd.concat(limpias, axis=1, sort=True)
     fechas_totales = len(tabla)
-
-    # Calendario común: solo los días en que cotizan todos los activos
+    # Calendario común: se descartan los días en que falta algún activo, sin
+    # rellenar precios (un festivo de una bolsa no es un precio sin cambios).
     tabla = tabla.dropna()
 
     if tabla.empty:
@@ -158,7 +157,10 @@ def alinear_precios(precios):
 
 
 def validar_pesos(pesos: dict, activos) -> pd.Series:
-    """Comprueba que los pesos encajan con los activos y suman 1."""
+    """Comprueba que los pesos encajan con los activos y suman 1 (tolerancia 1e-6).
+
+    Devuelve los pesos en el orden de activos, renormalizados para sumar 1 exacto.
+    """
     activos = list(activos)
     if not activos or pd.Index(activos).has_duplicates:
         raise ValueError("Los activos deben ser únicos y no estar vacíos.")

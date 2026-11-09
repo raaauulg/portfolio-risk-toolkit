@@ -67,8 +67,7 @@ def descargar_serie(
     if (precios <= 0).any():
         raise ValueError(f"Yahoo Finance devolvió precios no positivos para {ticker}.")
 
-    # Si no se indica la moneda, intenta conocerla por la propia fuente.
-    # La ausencia de metadatos no debe impedir recuperar los precios.
+    # Un fallo al leer los metadatos no debe impedir devolver los precios.
     if moneda is None:
         try:
             metadatos = instrumento.get_history_metadata()
@@ -106,9 +105,9 @@ def descargar_series(
 ) -> dict[str, SeriePrecios]:
     """Descarga un lote de activos y devuelve {ticker: SeriePrecios}.
 
-    Los símbolos de los diccionarios opcionales se escriben en mayúsculas.
-    Se detiene con un error si alguno de los activos no puede descargarse;
-    no devuelve una cartera incompleta sin avisar.
+    Las claves de tipos y monedas deben ir en mayúsculas, como los tickers ya
+    normalizados. Si un activo falla, se propaga su excepción: nunca se
+    devuelve un lote incompleto.
     """
     if not isinstance(tickers, list) or not tickers:
         raise ValueError("Debes facilitar una lista no vacía de tickers.")

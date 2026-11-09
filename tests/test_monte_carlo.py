@@ -1,4 +1,4 @@
-"""Pruebas del motor de Monte Carlo integrado en Cartera y SeriePrecios (4.4).
+"""Pruebas del motor de Monte Carlo integrado en Cartera y SeriePrecios (apartado 4.4).
 
 Datos sintéticos con semilla fija y sin Internet.
 """

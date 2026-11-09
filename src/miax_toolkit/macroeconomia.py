@@ -10,8 +10,8 @@ import re
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -26,11 +26,13 @@ class SerieIndicador:
     unidad: str = "no especificada"
 
     def __post_init__(self):
-        if any(not isinstance(v, str) or not v.strip() for v in (self.indicador, self.pais, self.fuente, self.frecuencia, self.unidad)):
+        if any(not isinstance(v, str) or not v.strip()
+               for v in (self.indicador, self.pais, self.fuente, self.frecuencia, self.unidad)):
             raise ValueError("Los metadatos del indicador deben ser textos no vacíos.")
         if not isinstance(self.valores, pd.Series) or self.valores.empty:
             raise ValueError("El indicador necesita observaciones.")
-        if not isinstance(self.valores.index, pd.DatetimeIndex) or self.valores.index.hasnans or self.valores.index.has_duplicates:
+        if (not isinstance(self.valores.index, pd.DatetimeIndex)
+                or self.valores.index.hasnans or self.valores.index.has_duplicates):
             raise ValueError("Las fechas del indicador deben ser válidas y únicas.")
         if (not pd.api.types.is_numeric_dtype(self.valores.dtype)
                 or pd.api.types.is_bool_dtype(self.valores.dtype)
@@ -52,7 +54,9 @@ def descargar_indicador(
 ) -> SerieIndicador:
     """Obtiene un indicador anual del Banco Mundial sin clave API.
 
-    Ejemplo: PIB nominal de España (ESP, NY.GDP.MKTP.CD).
+    inicio y fin son años, ambos incluidos. Cada observación se fecha el 31 de
+    diciembre y los años sin dato se omiten. Sin unidad explícita solo se
+    reconoce la de NY.GDP.MKTP.CD (USD corrientes), p. ej. el PIB de ESP.
     """
     if not isinstance(pais, str) or not re.fullmatch(r"[A-Za-z]{2,3}", pais):
         raise ValueError("El país debe ser un código de dos o tres letras.")
