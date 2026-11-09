@@ -26,6 +26,7 @@ cartera, el motor de simulación y los informes no cambian.
 - [Cómo añadir una fuente de datos](#cómo-añadir-una-fuente-de-datos)
 - [Pruebas](#pruebas)
 - [Limitaciones](#limitaciones)
+- [Trabajo futuro](#trabajo-futuro)
 - [Correspondencia con el enunciado](#correspondencia-con-el-enunciado)
 - [Referencias](#referencias)
 
@@ -250,6 +251,11 @@ Son escenarios con parámetros constantes, no predicciones. Con poca historia,
 la estimación del retorno es inestable. No se modelan costes, impuestos,
 rebalanceos ni cambios futuros de volatilidad o correlación.
 
+`resultado.plot()` con la cartera de demostración (AAPL, MSFT, JPM, JNJ y XOM,
+calibrada con 2021-2025, 5.000 escenarios a 252 sesiones, `nu = 5`):
+
+![Trayectorias simuladas y distribución del valor final](docs/img/toolkit_monte_carlo.png)
+
 ## Informes y gráficos
 
 `cartera.report()` devuelve Markdown y admite `secciones`, `tasa_libre`
@@ -284,6 +290,41 @@ Permite elegir `graficos` (`rendimiento`, `correlacion`, `evolucion`,
 `riesgo`) y configurar `ventana_volatilidad`, `benchmark`, `mostrar` y
 `carpeta`. Si no hay sesiones suficientes para la ventana de volatilidad, no
 se inventan observaciones.
+
+Salida real con la misma cartera de demostración frente al S&P 500 de FRED.
+Extracto de `cartera.report(secciones=("resumen", "advertencias"))`:
+
+```markdown
+# Informe de Cartera Demo (EE. UU.)
+
+Periodo: 04/01/2021 a 31/12/2025 (1255 sesiones). Cartera de comprar y mantener.
+
+## Métricas de la cartera
+
+| Métrica | Valor |
+| --- | --- |
+| Rentabilidad total | 142,25 % |
+| Rentabilidad anualizada | 19,46 % |
+| Volatilidad anualizada | 16,21 % |
+| Ratio de Sharpe (tasa libre 0,00 %) | 1,18 |
+| Ratio de Sortino | 1,73 |
+| Caída máxima | -17,37 % |
+| VaR diario histórico al 95 % | 1,61 % |
+| CVaR diario histórico al 95 % | 2,29 % |
+| Beta frente a ^GSPC | 0,83 |
+
+## Advertencias de riesgo
+
+- **INFO:** Métricas históricas y escenarios simulados: no garantizan resultados futuros y no incluyen costes ni impuestos.
+```
+
+Figuras de `cartera.plots_report()`:
+
+| Evolución y caídas desde máximos | Correlación de rendimientos |
+| --- | --- |
+| ![Evolución del valor de la cartera y caídas](docs/img/toolkit_evolucion.png) | ![Matriz de correlación](docs/img/toolkit_correlacion.png) |
+
+![Volatilidad móvil y aportación al riesgo por activo](docs/img/toolkit_riesgo.png)
 
 ## Dashboard
 
@@ -328,11 +369,61 @@ móvil y rendimientos diarios) se derivan en `app/transformaciones.py` con las
 mismas fórmulas que las figuras del toolkit, y hay pruebas que comprueban que
 coinciden.
 
-| Monte Carlo | Cartera y riesgo |
-| --- | --- |
-| ![Página de Monte Carlo](docs/img/dashboard_monte_carlo.jpg) | ![Página de cartera y riesgo](docs/img/dashboard_riesgo.png) |
+### Recorrido por la aplicación
 
-Hay más capturas en `docs/img/`.
+Todas las capturas son de la aplicación ejecutándose en local en modo
+*Instantánea*, a 1440 × 900.
+
+**Inicio.** Sin configuración aplicada, cada página indica cómo empezar. La
+barra lateral agrupa los presets y los tres pasos de configuración: datos,
+cartera y simulación.
+
+![Pantalla inicial con la barra lateral](docs/img/dashboard_inicio.png)
+
+**Resumen.** Indicadores principales con su diferencia frente al benchmark en
+las mismas fechas, evolución en base 100 y advertencias del informe.
+
+![Página Resumen con la cartera de demostración](docs/img/dashboard_resumen.png)
+
+**Datos y calidad.** Contrato de datos de cada serie (fuente, moneda,
+frecuencia, ajuste, unidad y fechas) y el diagnóstico de `alinear_precios`.
+En la captura, la cartera europea, con activos de tres bolsas y calendarios
+distintos.
+
+![Página Datos y calidad con la cartera europea](docs/img/dashboard_datos.png)
+
+**Cartera y riesgo.** Composición, peso frente a aportación al riesgo,
+métricas por activo, correlaciones, caídas desde máximos, volatilidad móvil y
+distribución de rendimientos diarios con el VaR y el CVaR.
+
+| Composición y métricas por activo | Caídas y volatilidad |
+| --- | --- |
+| ![Composición y aportación al riesgo](docs/img/dashboard_riesgo.png) | ![Caídas desde máximos y volatilidad móvil](docs/img/dashboard_riesgo_caidas.png) |
+
+**Monte Carlo.** Probabilidad de pérdida y percentiles, abanico de escenarios
+e histograma del valor final. El comparador de colas simula la misma cartera
+con la misma semilla y `nu = 200` (prácticamente normal) para mostrar el
+efecto de la t de Student día a día.
+
+| Escenarios simulados | Comparador de colas |
+| --- | --- |
+| ![Página Monte Carlo](docs/img/dashboard_monte_carlo.png) | ![Comparador de colas t frente a normal](docs/img/dashboard_colas.png) |
+
+**Informe y arquitectura.** El informe es la salida de `report()` sin
+modificar, con selección de secciones y descarga en Markdown, seguida de las
+figuras de `plots_report()`. La página de arquitectura muestra los diagramas y
+la lista de funciones públicas que usa la aplicación, generada a partir de sus
+imports.
+
+| Informe | Arquitectura |
+| --- | --- |
+| ![Página Informe](docs/img/dashboard_informe.png) | ![Página Arquitectura](docs/img/dashboard_arquitectura.png) |
+
+**Errores.** En modo *En directo*, un ticker inexistente produce un aviso de
+consulta sin datos, distinto del error de conexión, con la sugerencia de usar
+la instantánea.
+
+![Aviso de consulta sin datos en modo En directo](docs/img/dashboard_error.png)
 
 ## Arquitectura
 
@@ -479,6 +570,51 @@ del toolkit.
 - Los activos de la instantánea del dashboard se eligieron a posteriori, entre
   grandes compañías actuales (sesgo de supervivencia), así que su rentabilidad
   histórica es optimista.
+
+## Trabajo futuro
+
+### Despliegue del dashboard como servicio
+
+Hoy el dashboard se ejecuta en local y se detiene al cerrar la terminal. Para
+dejarlo disponible de forma permanente:
+
+1. **Contenedor.** Un `Dockerfile` con Python 3.12 que instale `.[app]` y
+   arranque `streamlit run app/dashboard.py --server.address 0.0.0.0
+   --server.headless true`, con `HEALTHCHECK` sobre `/_stcore/health`. La
+   instantánea va dentro de la imagen, así que el servicio arranca sin depender
+   de Yahoo ni de FRED.
+2. **Servidor permanente.** Una máquina virtual pequeña (por ejemplo, en Azure,
+   AWS o GCP) que ejecute el contenedor con reinicio automático
+   (`--restart unless-stopped` o un servicio de systemd). Alternativas
+   gestionadas: Azure Container Apps, Google Cloud Run o Streamlit Community
+   Cloud.
+3. **Acceso.** Un proxy inverso (nginx o Caddy) con HTTPS y autenticación
+   delante de Streamlit. El repositorio es privado y los datos del S&P 500
+   tienen condiciones de uso, así que no debería quedar expuesto sin control
+   de acceso.
+4. **Datos actualizados.** Una tarea programada (cron o GitHub Actions) que
+   ejecute `python -m app.generar_instantanea`, valide el resultado con las
+   pruebas y publique una nueva instantánea, y una caché persistente de
+   descargas (Parquet o SQLite) para no consultar a los proveedores en cada
+   sesión.
+5. **Varios usuarios.** Limitar memoria y escenarios por sesión y mover las
+   simulaciones grandes a un proceso de trabajo aparte para que no bloqueen la
+   interfaz.
+
+### Mejoras del toolkit
+
+| Área | Mejora | Motivo |
+| --- | --- | --- |
+| Ingeniería | Integración continua con GitHub Actions: `pytest -W error`, `ruff` y `mypy` en cada pull request. | Detectar regresiones antes de integrar. |
+| Ingeniería | Contrato formal de adaptadores con `typing.Protocol` o una clase abstracta. | Comprobar el contrato con análisis estático al crecer el número de fuentes. |
+| Ingeniería | Funciones públicas en `reportes` para caídas, volatilidad móvil, beta y advertencias como datos. | El dashboard dejaría de necesitar `app/transformaciones.py`. |
+| Ingesta | Descargas en paralelo con reintentos y espera exponencial, y resultados parciales opcionales. | Lotes grandes más rápidos y tolerantes a fallos puntuales. |
+| Ingesta | Nuevas fuentes (Alpha Vantage, Finnhub) y datos fundamentales. | Ampliar los tipos de dato sin tocar el análisis. |
+| Modelo | Conversión de divisas con `descargar_tipo_cambio_bce`. | Admitir carteras multimoneda. |
+| Modelo | Rebalanceo periódico y costes de transacción. | Simular estrategias más realistas que comprar y mantener. |
+| Modelo | Volatilidad variable (GARCH), correlaciones dinámicas y *bootstrap* histórico como alternativa a la t de Student. | Capturar agrupamientos de volatilidad y contrastar supuestos. |
+| Análisis | Backtesting *walk-forward* y optimización de pesos (mínima varianza, paridad de riesgo). | Evaluar decisiones fuera de muestra. |
+| Dashboard | Comparación de varias carteras, exportación del informe a PDF y revisión del tema oscuro. | Uso más allá de la demostración. |
 
 ## Correspondencia con el enunciado
 
