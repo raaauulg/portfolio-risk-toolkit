@@ -2,13 +2,13 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/logo-dark.svg">
-  <img src="docs/img/logo-light.svg" alt="miax-toolkit" width="560">
+  <img src="docs/img/logo-light.svg" alt="portfolio-risk-toolkit" width="600">
 </picture>
 
 **Toolkit en Python para descargar datos financieros de varias fuentes, llevarlos a un formato común,
 analizar carteras, simular escenarios de Monte Carlo y generar informes, con un dashboard que funciona sin conexión.**
 
-[![CI](https://github.com/raaauulg/miax-b1-t1/actions/workflows/ci.yml/badge.svg)](https://github.com/raaauulg/miax-b1-t1/actions/workflows/ci.yml)
+[![CI](https://github.com/raaauulg/portfolio-risk-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/raaauulg/portfolio-risk-toolkit/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab.svg)](pyproject.toml)
 [![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
 [![Pruebas: pytest sin red](https://img.shields.io/badge/pruebas-pytest%20sin%20red-success.svg)](#pruebas)
@@ -19,8 +19,9 @@ analizar carteras, simular escenarios de Monte Carlo y generar informes, con un 
 
 </div>
 
-miax-toolkit es el trabajo del taller B1-T1 del máster MIAX (Instituto BME): una librería modular en la
-que la ingesta de datos está separada del modelado y del análisis.
+portfolio-risk-toolkit nació como trabajo del taller B1-T1 del máster MIAX (Instituto BME): una librería modular en la
+que la ingesta de datos está separada del modelado y del análisis. El paquete se instala como `miax-toolkit` y se
+importa como `miax_toolkit`.
 
 <p align="center">
   <img src="docs/img/dashboard_resumen.png" alt="Página Resumen del dashboard: seis indicadores de la cartera de demostración frente al S&P 500 y su evolución en base 100" width="100%">
@@ -33,7 +34,7 @@ que la ingesta de datos está separada del modelado y del análisis.
 
 Los scripts rápidos que descargan precios y calculan cuatro métricas dejan de servir en cuanto hay que combinar
 proveedores, mezclar acciones con índices o indicadores macroeconómicos, o repetir el análisis con otra cartera.
-miax-toolkit resuelve ese problema con un **contrato de datos común**: cada fuente entrega el mismo tipo de objeto,
+portfolio-risk-toolkit resuelve ese problema con un **contrato de datos común**: cada fuente entrega el mismo tipo de objeto,
 y la cartera, la limpieza, el motor de simulación y los informes solo dependen de ese contrato. Añadir un
 proveedor es escribir un adaptador; el resto del sistema no cambia.
 
@@ -59,8 +60,8 @@ proveedor es escribir un adaptador; el resto del sistema no cambia.
 Se necesita Python 3.12 y Git. Las versiones de las dependencias están fijadas en [`pyproject.toml`](pyproject.toml).
 
 ```powershell
-git clone https://github.com/JaviHdezOlba/miax-b1-t1.git
-cd miax-b1-t1
+git clone https://github.com/raaauulg/portfolio-risk-toolkit.git
+cd portfolio-risk-toolkit
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install .
 .\.venv\Scripts\python.exe ejemplos/demo_completa.py
@@ -80,7 +81,7 @@ Cartera sintética, a 252 días de mercado, partiendo de 100.00:
 - Mediana del valor final (P50): 106.77.
 - Percentil 95 del valor final (P95): 154.46.
 ...
-Informe y cinco gráficos guardados en ...\miax-b1-t1\resultados\demo
+Informe y cinco gráficos guardados en ...\portfolio-risk-toolkit\resultados\demo
 ```
 
 Para abrir el dashboard:
@@ -556,7 +557,7 @@ Los datos de [`data/sample/`](data/sample) no están cubiertos por esa licencia:
 mantienen las condiciones de uso de sus proveedores (el S&P 500 es propiedad de S&P Dow Jones Indices), descritas en
 [su README](data/sample/README.md).
 
-miax-toolkit es una herramienta académica de análisis: sus resultados son históricos o simulados y nada de lo que
+portfolio-risk-toolkit es una herramienta académica de análisis: sus resultados son históricos o simulados y nada de lo que
 contiene es asesoramiento financiero.
 
 ## Autores
