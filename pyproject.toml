@@ -16,5 +16,8 @@ dependencies = [
     "requests==2.34.2",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest==9.2.0"]
+
 [tool.setuptools.packages.find]
 where = ["src"]

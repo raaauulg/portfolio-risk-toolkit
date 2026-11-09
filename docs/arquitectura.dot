@@ -1,26 +1,36 @@
+// Diagrama UML de clases y dependencias del toolkit (apartado 4.6).
+// Notación: flecha discontinua con punta abierta = dependencia (usa, crea, delega);
+// línea continua con rombo vacío = agregación. «módulo» = fichero Python con
+// funciones, no una clase. Regenerar: dot -Tsvg docs/arquitectura.dot -o docs/arquitectura.svg
 digraph Toolkit {
   graph [rankdir=TB, bgcolor="white", pad=0.3, nodesep=0.5, ranksep=0.9,
          fontname="Arial", label="MIAX B1-T1 - Clases, dependencias y flujo", labelloc=t, fontsize=22];
   node [shape=record, fontname="Arial", fontsize=12, style=filled, fillcolor="#edf4fa", color="#376485", margin="0.14,0.10"];
-  edge [fontname="Arial", fontsize=10, color="#536776", arrowsize=0.8];
+  edge [fontname="Arial", fontsize=10, color="#536776", arrowsize=0.8, arrowhead=vee];
 
-  Adaptadores [label="{\<\<modulos de ingesta\>\>\nAdaptadores|extractores.py: Yahoo\lmacroeconomia.py: Banco Mundial\lfuentes.py: FRED y BCE\l}", fillcolor="#f4f4ef"];
-  SeriePrecios [label="{\<\<dataclass\>\>\nSeriePrecios|+ ticker, precios, fuente\l+ tipo_activo, moneda, frecuencia\l+ unidad, ajuste\l+ media, desviacion_tipica\l+ valores: propiedad de precios\l|+ __post_init__(): estadisticos\l+ monte_carlo(): SimulationResult\l}"];
-  SerieIndicador [label="{\<\<dataclass\>\>\nSerieIndicador|+ indicador, pais, valores\l+ fuente, frecuencia, unidad\l|+ __post_init__(): validacion\l}"];
-  Cartera [label="{\<\<dataclass\>\>\nCartera|+ nombre, series, pesos\l|+ obtener_precios(): dict\l+ obtener_pesos(): dict\l+ obtener_monedas(): dict\l+ monte_carlo(): SimulationResult\l+ report(): str\l+ plots_report(): dict\l}"];
-  Limpieza [label="{\<\<modulo\>\>\nlimpieza.py|+ limpiar_precios()\l+ alinear_precios()\l+ validar_pesos()\l+ validar_tabla()\l}", fillcolor="#f4f4ef"];
-  Motor [label="{\<\<modulo\>\>\nmonte_carlo.py|+ estimar_parametros()\l+ simular_activo()\l+ simular_cartera()\l}", fillcolor="#f4f4ef"];
-  SimulationResult [label="{\<\<dataclass\>\>\nSimulationResult|+ nombre, trayectorias, parametros\l|+ percentiles(): DataFrame\l+ resumen(): dict\l+ interpretacion(): str\l+ plot(): Figure\l}"];
-  Reportes [label="{\<\<modulo\>\>\nreportes.py|+ generar_report(): Markdown\l+ generar_plots(): figuras\l}", fillcolor="#f4f4ef"];
+  Adaptadores [label="{\<\<módulos de ingesta\>\>\nAdaptadores|extractores.py: Yahoo Finance\l   · descargar_serie(), descargar_series()\lmacroeconomia.py: Banco Mundial\l   · descargar_indicador()\lfuentes.py: FRED y BCE\l   · descargar_sp500_fred(), descargar_indicador_fred()\l   · descargar_tipo_cambio_bce()\l}", fillcolor="#f4f4ef"];
+  SeriePrecios [label="{\<\<dataclass\>\>\nSeriePrecios|+ ticker: str\l+ precios: Series\l+ fuente: str\l+ tipo_activo: str\l+ moneda: str \| None\l+ frecuencia: str\l+ unidad: str \| None\l+ ajuste: str\l+ media: float  (calculado)\l+ desviacion_tipica: float  (calculado)\l+ valores: Series  \<\<property\>\>\l|+ __post_init__(): valida y calcula estadísticos\l+ monte_carlo(**opciones): SimulationResult\l}"];
+  SerieIndicador [label="{\<\<dataclass\>\>\nSerieIndicador|+ indicador: str\l+ pais: str\l+ valores: Series\l+ fuente: str\l+ frecuencia: str\l+ unidad: str\l|+ __post_init__(): validación\l}"];
+  Cartera [label="{\<\<dataclass\>\>\nCartera|+ nombre: str\l+ series: list[SeriePrecios]\l+ pesos: dict[str, float]\l|+ obtener_precios(): dict[str, Series]\l+ obtener_pesos(): dict[str, float]\l+ obtener_monedas(): dict[str, str] \| None\l+ monte_carlo(n_sims, horizonte, retorno, volatilidad,\l      nu, v0, semilla, activo...): SimulationResult\l+ report(secciones, benchmark, simulacion...): str\l+ plots_report(graficos, benchmark...): dict\l- _preparar_datos(): (DataFrame, list)\l}"];
+  Limpieza [label="{\<\<módulo\>\>\nlimpieza.py|+ limpiar_precios(serie, nombre...): (Series, list)\l+ alinear_precios(precios): (DataFrame, list)\l+ validar_pesos(pesos, activos): Series\l+ validar_tabla(precios, min_observaciones): None\l}", fillcolor="#f4f4ef"];
+  Motor [label="{\<\<módulo\>\>\nmonte_carlo.py|+ estimar_parametros(precios): (mu, sigma, correlación)\l+ simular_cartera(precios, pesos...): SimulationResult\l+ simular_activo(precios, v0...): SimulationResult\l}", fillcolor="#f4f4ef"];
+  SimulationResult [label="{\<\<dataclass\>\>\nSimulationResult|+ nombre: str\l+ trayectorias: ndarray  (n_sims × horizonte+1)\l+ parametros: dict\l+ valor_inicial: float  \<\<property\>\>\l+ valores_finales: ndarray  \<\<property\>\>\l|+ percentiles(niveles): DataFrame\l+ resumen(): dict\l+ interpretacion(): str\l+ plot(n_trayectorias, mostrar, ruta): Figure\l}"];
+  Reportes [label="{\<\<módulo\>\>\nreportes.py|+ generar_report(precios, pesos...): str (Markdown)\l+ generar_plots(precios, pesos...): dict[str, Figure]\l+ valor_cartera(precios, pesos, v0): Series\l+ metricas(valores, tasa_libre, nivel_var): dict\l+ contribucion_riesgo(precios, pesos): Series\l}", fillcolor="#f4f4ef"];
 
   Adaptadores -> SeriePrecios [style=dashed, label="crea"];
   Adaptadores -> SerieIndicador [style=dashed, label="crea"];
-  SeriePrecios -> Cartera [dir=both, arrowtail=none, arrowhead=odiamond, taillabel="1..*", headlabel="0..*", label="agrega"];
+  // Agregación: rombo vacío en el todo (Cartera). Una cartera tiene 1..* series;
+  // una serie puede estar en 0..* carteras.
+  SeriePrecios -> Cartera [dir=both, arrowtail=none, arrowhead=odiamond, arrowsize=1.2,
+                           taillabel="1..*", headlabel="0..*", labeldistance=2.5, labelangle=-40,
+                           label="agrega"];
+  Cartera -> SeriePrecios [style=dashed, label="delega monte_carlo(activo=...)", constraint=false];
   Cartera -> Limpieza [style=dashed, label="prepara"];
   Cartera -> Motor [style=dashed, label="delega"];
   Cartera -> Reportes [style=dashed, label="delega"];
+  Cartera -> SimulationResult [style=dashed, label="devuelve"];
   SeriePrecios -> Motor [style=dashed, label="simula activo"];
-  SeriePrecios -> Limpieza [style=dashed, label="prepara", constraint=false];
+  SeriePrecios -> Limpieza [style=dashed, label="prepara"];
   Motor -> Limpieza [style=dashed, label="valida"];
   Reportes -> Limpieza [style=dashed, label="valida"];
   Motor -> SimulationResult [style=dashed, label="crea"];

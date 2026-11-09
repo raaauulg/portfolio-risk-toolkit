@@ -29,6 +29,25 @@ entorno. Si se modifica el código, reinstalar con `python -m pip install .`
 usando el intérprete de ese entorno; para desarrollo se puede instalar con
 `python -m pip install -e .`.
 
+## Pruebas
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+No necesitan Internet: las llamadas a Yahoo, Banco Mundial, FRED y BCE se
+simulan con `unittest.mock` y el resto usa datos sintéticos con semilla fija.
+Hay un fichero por módulo (`tests/test_extractores.py`, `test_limpieza.py`,
+`test_monte_carlo.py`, `test_reportes.py`…). Entre otras cosas comprueban:
+
+- que todas las fuentes devuelven objetos con el mismo contrato de datos;
+- que la cartera valida pesos, moneda y frecuencia;
+- que la simulación es reproducible con la misma semilla y que la mediana de
+  `log(valor final)` de un activo coincide con `log(v0) + retorno · años`;
+- que el informe y los gráficos se generan y que los ficheros de texto
+  están en UTF-8.
+
 ## Ejemplos reproducibles
 
 | Ejemplo | Qué demuestra | Conexión |
@@ -259,9 +278,105 @@ docs/
     arquitectura.svg
 ```
 
-El [diagrama UML y el flujo del sistema](docs/arquitectura.md) representan las
-clases, las dependencias y la separación de responsabilidades. Los ejemplos
-de este README y de `ejemplos/` permiten reproducir los seis bloques del taller.
+El diagrama UML muestra las clases, los módulos y sus dependencias. Las flechas
+discontinuas significan «usa, crea o delega en» y el rombo vacío, que una
+`Cartera` agrega una o más `SeriePrecios`:
+
+![Diagrama UML de clases y dependencias del toolkit](docs/arquitectura.svg)
+
+En [docs/arquitectura.md](docs/arquitectura.md) están la leyenda de la
+notación, la separación de responsabilidades y un **diagrama de secuencia** del
+flujo completo: descarga → `SeriePrecios` → `Cartera` → limpieza → Monte Carlo
+→ informe y gráficos. Los ejemplos de este README y de `ejemplos/` permiten
+reproducir los seis bloques del taller.
+
+## Decisiones de diseño
+
+**DataClasses que se validan al crearse.** `SeriePrecios`, `SerieIndicador`,
+`Cartera` y `SimulationResult` son `@dataclass`. Su `__post_init__` rechaza los
+datos inválidos, así que no puede existir un objeto en un estado incorrecto.
+`SeriePrecios` calcula además la media y la desviación típica al instanciarse,
+como pide el apartado 4.3.
+
+**Composición y delegación en lugar de herencia.** `Cartera` *agrega* objetos
+`SeriePrecios` y sus métodos `monte_carlo()`, `report()` y `plots_report()` son
+fachadas: preparan los datos (`_preparar_datos()`) y delegan el cálculo en
+módulos de funciones (`limpieza`, `monte_carlo`, `reportes`) que trabajan con
+tablas de pandas y no conocen `Cartera` ni las APIs. Así:
+
+- cada cálculo se puede probar con datos sintéticos sin construir objetos;
+- el mismo motor sirve para un activo y para la cartera;
+- se puede cambiar un cálculo (por ejemplo, el modelo de simulación) sin tocar
+  las clases de datos.
+
+Se descartó una jerarquía con una clase base `Serie` porque no existe una
+relación «es un» útil: un indicador macroeconómico no es una serie de precios
+y no debe poder entrar en una cartera. Separarlos en dos clases hace que ese
+error sea imposible, no algo que haya que comprobar.
+
+**Contrato de datos común.** Cualquier adaptador entrega una `pandas.Series` de
+`float` con `DatetimeIndex` sin zona horaria, ordenado y sin fechas duplicadas,
+dentro de un objeto con `valores`, `fuente`, `frecuencia` y `unidad` (y, en
+precios, `ticker`, `moneda` y `ajuste`). El resto del sistema solo depende de
+ese contrato, nunca de la respuesta original de cada API.
+
+**Inputs restringidos y errores explícitos.** Se prefiere rechazar con un
+mensaje claro antes que corregir en silencio: precios diarios, moneda común,
+pesos no negativos que suman uno y un mínimo de observaciones (véase
+[Inputs admitidos y limpieza](#inputs-admitidos-y-limpieza)).
+
+**Monte Carlo con t de Student multivariante.** Colas más gruesas que la normal
+y correlación entre activos (factor de Cholesky y un mismo chi-cuadrado para
+todos los activos cada día). Como la esperanza del precio no es finita con
+esos shocks, se interpretan la mediana y los percentiles (véase
+[Monte Carlo: parámetros y supuestos](#monte-carlo-parámetros-y-supuestos)).
+
+**Limitaciones conocidas del diseño.**
+
+- La interfaz común de `SeriePrecios` y `SerieIndicador` es una convención que
+  no comprueba el código. Un `typing.Protocol` la haría explícita y verificable.
+- Los adaptadores son funciones, no clases con una interfaz abstracta común
+  (`ABC`). Con cuatro fuentes es suficiente, pero un contrato formal ayudaría
+  si el número de proveedores creciera.
+- `descargar_series` descarga los tickers uno tras otro y se detiene en el
+  primer fallo. No paraleliza las descargas ni devuelve resultados parciales.
+- No se convierten divisas: una cartera con monedas distintas se rechaza.
+
+## Cómo añadir una nueva fuente de datos
+
+Basta con escribir un adaptador; la cartera, la limpieza, el motor y los
+informes no cambian porque solo consumen `SeriePrecios`.
+
+1. **Escribe una función de descarga** en un módulo de ingesta (por ejemplo,
+   en `fuentes.py`, donde ya existen las utilidades `_intervalo`, `_csv` y
+   `_normalizar`). Debe validar sus argumentos y lanzar `RuntimeError` si
+   falla la red y `ValueError` si los datos no son válidos.
+2. **Normaliza la respuesta al contrato de datos**: `Series` de `float`,
+   índice de fechas sin zona horaria, ordenado y sin duplicados.
+3. **Devuelve el objeto interno adecuado**: `SeriePrecios` si son precios
+   (indicando `moneda`, que la cartera exige, y `ajuste`) o `SerieIndicador`
+   si es otro tipo de dato.
+4. **Expórtala** en `src/miax_toolkit/__init__.py` y en `__all__`.
+5. **Pruébala sin Internet**, simulando la llamada de red con
+   `unittest.mock.patch` (por ejemplo, sobre `requests.get`).
+
+Esqueleto ilustrativo para un proveedor que sirve un CSV con columnas `Date` y
+`Close` (la URL es un ejemplo, no un servicio real):
+
+```python
+# En src/miax_toolkit/fuentes.py
+def descargar_precios_mi_proveedor(ticker: str, inicio: str, fin: str,
+                                   moneda: str) -> SeriePrecios:
+    """Cierres diarios de Mi Proveedor normalizados al contrato común."""
+    primero, ultimo = _intervalo(inicio, fin)
+    tabla = _csv("https://ejemplo.com/precios.csv", {"s": ticker}, "Mi Proveedor")
+    precios = _normalizar(tabla, "Date", "Close", primero, ultimo, ticker.upper())
+    return SeriePrecios(ticker.upper(), precios, "Mi Proveedor",
+                        moneda=moneda, ajuste="no_especificado")
+```
+
+A partir de ahí, la nueva serie funciona igual que una de Yahoo:
+`Cartera("Mixta", [serie_yahoo, serie_nueva], pesos).report()`.
 
 ## Referencias
 
