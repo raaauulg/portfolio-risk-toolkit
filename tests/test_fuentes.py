@@ -12,11 +12,13 @@ from miax_toolkit import SeriePrecios, SerieIndicador, descargar_sp500_fred, des
 class _Respuesta:
     """Imita lo mínimo de requests.Response que usan los adaptadores."""
 
-    def __init__(self, texto: str):
+    def __init__(self, texto: str, status_code: int = 200):
         self.text = texto
+        self.status_code = status_code
 
     def raise_for_status(self) -> None:
-        pass
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code} Error")
 
 
 @patch("miax_toolkit.fuentes.requests.get")
@@ -51,5 +53,25 @@ def test_tipo_de_cambio_del_bce_es_un_indicador(get):
 
 @patch("miax_toolkit.fuentes.requests.get", side_effect=requests.ConnectionError("sin red"))
 def test_fallo_de_red_da_un_error_explicito(get):
-    with pytest.raises(RuntimeError, match="FRED"):
+    with pytest.raises(RuntimeError, match="FRED.*conexión"):
+        descargar_sp500_fred("2025-01-01", "2025-01-10")
+
+
+# Respuestas reales observadas para un fin de semana (2025-01-04 a 2025-01-06):
+# FRED devuelve HTTP 404 y el BCE un cuerpo vacío. No es un fallo de red.
+@patch("miax_toolkit.fuentes.requests.get", return_value=_Respuesta("", status_code=404))
+def test_fred_sin_observaciones_en_el_rango_da_un_error_de_datos(get):
+    with pytest.raises(ValueError, match=r"FRED no tiene observaciones.*2025-01-04 y 2025-01-06"):
+        descargar_sp500_fred("2025-01-04", "2025-01-06")
+
+
+@patch("miax_toolkit.fuentes.requests.get", return_value=_Respuesta(""))
+def test_bce_sin_observaciones_en_el_rango_da_un_error_de_datos(get):
+    with pytest.raises(ValueError, match=r"BCE no tiene observaciones.*fin de semana"):
+        descargar_tipo_cambio_bce("USD", "2025-01-04", "2025-01-06")
+
+
+@patch("miax_toolkit.fuentes.requests.get", return_value=_Respuesta("error", status_code=503))
+def test_error_del_servidor_no_se_confunde_con_falta_de_datos(get):
+    with pytest.raises(RuntimeError, match="HTTP 503"):
         descargar_sp500_fred("2025-01-01", "2025-01-10")

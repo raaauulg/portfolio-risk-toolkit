@@ -26,13 +26,40 @@ def _intervalo(inicio: str, fin: str):
     return primero, ultimo
 
 
-def _csv(url: str, parametros: dict, fuente: str) -> pd.DataFrame:
+def _csv(url: str, parametros: dict, fuente: str, periodo: str = "") -> pd.DataFrame:
+    """Descarga un CSV distinguiendo fallo de red (RuntimeError) y ausencia de datos (ValueError).
+
+    FRED responde 404 y el BCE un cuerpo vacío cuando no hay observaciones en el
+    rango (por ejemplo, un fin de semana); eso no es un problema de conexión.
+    """
     try:
         respuesta = requests.get(url, params=parametros, timeout=30)
+    except requests.RequestException as error:
+        raise RuntimeError(f"No se pudo conectar con {fuente}; comprueba la conexión a Internet.") from error
+
+    sin_datos = (
+        f"{fuente} no tiene observaciones para esa serie{periodo}. "
+        "Puede que la serie no exista o que el rango no contenga días con dato "
+        "(fin de semana, festivo o fechas fuera del histórico disponible)."
+    )
+    if respuesta.status_code == 404 or not respuesta.text.strip():
+        raise ValueError(sin_datos)
+    try:
         respuesta.raise_for_status()
+    except requests.HTTPError as error:
+        raise RuntimeError(
+            f"{fuente} respondió con un error HTTP {respuesta.status_code}; inténtalo más tarde."
+        ) from error
+    try:
         return pd.read_csv(StringIO(respuesta.text))
-    except (requests.RequestException, pd.errors.ParserError, pd.errors.EmptyDataError) as error:
-        raise RuntimeError(f"No se pudieron descargar datos de {fuente}; comprueba la conexión y la serie.") from error
+    except pd.errors.EmptyDataError as error:
+        raise ValueError(sin_datos) from error
+    except pd.errors.ParserError as error:
+        raise RuntimeError(f"{fuente} devolvió una respuesta que no es un CSV válido.") from error
+
+
+def _periodo(primero: date, ultimo: date) -> str:
+    return f" entre {primero.isoformat()} y {ultimo.isoformat()} (fin exclusivo)"
 
 
 def _normalizar(tabla, columna_fecha, columna_valor, inicio, fin, nombre):
@@ -58,7 +85,7 @@ def _fred(indicador, inicio, fin):
     indicador = indicador.upper()
     tabla = _csv("https://fred.stlouisfed.org/graph/fredgraph.csv", {
         "id": indicador, "cosd": primero.isoformat(), "coed": (ultimo - timedelta(days=1)).isoformat(),
-    }, "FRED")
+    }, "FRED", _periodo(primero, ultimo))
     fecha = "observation_date" if "observation_date" in tabla else "DATE"
     return _normalizar(tabla, fecha, indicador, primero, ultimo, indicador)
 
@@ -99,7 +126,7 @@ def descargar_tipo_cambio_bce(moneda: str, inicio: str, fin: str) -> SerieIndica
     tabla = _csv(f"https://data-api.ecb.europa.eu/service/data/EXR/{clave}", {
         "startPeriod": primero.isoformat(), "endPeriod": (ultimo - timedelta(days=1)).isoformat(),
         "format": "csvdata",
-    }, "BCE")
+    }, "BCE", _periodo(primero, ultimo))
     valores = _normalizar(tabla, "TIME_PERIOD", "OBS_VALUE", primero, ultimo, clave)
     if (valores <= 0).any():
         raise ValueError("El BCE devolvió un tipo de cambio no positivo.")
