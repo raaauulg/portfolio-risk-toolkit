@@ -1,8 +1,8 @@
 """Informe en Markdown y gráficos de una cartera (apartado 4.5).
 
-Este módulo no depende de la Cartera ni de la limpieza: recibe los precios ya
-limpios y alineados, los pesos y, si se quiere, el resultado del Monte Carlo.
-Así puede usarse desde cualquier versión de la Cartera.
+Este módulo no importa Cartera: recibe precios ya limpios y alineados, pesos
+y, opcionalmente, el resultado del Monte Carlo. Reutiliza las validaciones de
+limpieza y limpia la referencia cuando se proporciona un benchmark.
 
 La cartera se valora como "comprar y mantener" (igual que el Monte Carlo):
 se invierte según los pesos el primer día y no se rebalancea.
@@ -10,6 +10,7 @@ se invierte según los pesos el primer día y no se rebalancea.
 
 import numpy as np
 import pandas as pd
+from numbers import Real
 
 from .limpieza import limpiar_precios, validar_pesos, validar_tabla
 
@@ -47,7 +48,9 @@ def metricas(valores: pd.Series, tasa_libre: float = 0.0, nivel_var: float = 0.9
     """Métricas principales de una serie de valores (precio o valor de cartera)."""
     if not isinstance(valores, pd.Series) or valores.empty or not np.isfinite(valores).all() or (valores <= 0).any():
         raise ValueError("Se necesitan valores positivos y finitos para calcular métricas.")
-    if not np.isfinite(tasa_libre) or not np.isfinite(nivel_var) or not 0.5 < nivel_var < 1:
+    if (any(isinstance(x, (bool, np.bool_)) or not isinstance(x, Real)
+            or not np.isfinite(x) for x in (tasa_libre, nivel_var))
+            or not 0.5 < nivel_var < 1):
         raise ValueError("La tasa libre debe ser finita y nivel_var debe estar entre 0,5 y 1.")
     rend = valores.pct_change(fill_method=None).dropna()
     n = len(rend)
@@ -137,7 +140,7 @@ def _advertencias(m, pesos, riesgo, correlacion, umbrales, diagnostico, monedas,
         if rho > umbrales["correlacion_alta"]:
             avisos.append(("MEDIO", f"Poca diversificación entre {a} y {b}: correlación de {_num(rho)}."))
     if m["anios"] < umbrales["historia_minima_anios"]:
-        avisos.append(("MEDIO", f"Historia corta ({_num(m['anios'], 1)} años de datos comunes): "
+        avisos.append(("MEDIO", f"Historia corta ({_num(m['anios'], 2)} años de datos comunes): "
                                 "las métricas anualizadas son poco fiables."))
     if monedas and len(set(monedas.values())) > 1:
         avisos.append(("ALTO", f"La cartera mezcla monedas ({', '.join(sorted(set(monedas.values())))}) "
@@ -158,14 +161,14 @@ def _advertencias(m, pesos, riesgo, correlacion, umbrales, diagnostico, monedas,
 def _alinear_benchmark(precios, benchmark):
     """Compara sobre fechas reales comunes; nunca rellena cotizaciones ausentes."""
     if benchmark is None:
-        return precios, None
-    referencia, _ = limpiar_precios(benchmark, nombre="benchmark")
+        return precios, None, []
+    referencia, diagnostico = limpiar_precios(benchmark, nombre="benchmark")
     comunes = precios.index.intersection(referencia.index)
     if len(comunes) < 3:
         raise ValueError("El benchmark necesita al menos 3 fechas válidas comunes con la cartera.")
     tabla = precios.loc[comunes]
     validar_tabla(tabla)
-    return tabla, referencia.loc[comunes]
+    return tabla, referencia.loc[comunes], diagnostico
 
 
 def generar_report(
@@ -197,17 +200,19 @@ def generar_report(
     desconocidas = set(secciones) - set(SECCIONES)
     if desconocidas:
         raise ValueError(f"Secciones desconocidas: {sorted(desconocidas)}. Opciones: {SECCIONES}.")
-    if not 0.5 < nivel_var < 1:
+    if (isinstance(nivel_var, (bool, np.bool_)) or not isinstance(nivel_var, Real)
+            or not 0.5 < nivel_var < 1):
         raise ValueError("nivel_var debe estar entre 0,5 y 1.")
     if umbrales and set(umbrales) - set(UMBRALES):
         raise ValueError("Hay nombres de umbrales desconocidos.")
     umbrales = {**UMBRALES, **(umbrales or {})}
-    if any(not np.isfinite(v) or v < 0 for v in umbrales.values()):
+    if any(isinstance(v, (bool, np.bool_)) or not isinstance(v, Real)
+           or not np.isfinite(v) or v < 0 for v in umbrales.values()):
         raise ValueError("Los umbrales deben ser finitos y no negativos.")
     validar_tabla(precios)
     antes = len(precios)
-    precios, benchmark = _alinear_benchmark(precios, benchmark)
-    diagnostico = list(diagnostico)
+    precios, benchmark, diagnostico_ref = _alinear_benchmark(precios, benchmark)
+    diagnostico = list(diagnostico) + diagnostico_ref
     if benchmark is not None:
         diagnostico.append(f"Benchmark: análisis sobre {len(precios)} de {antes} fechas comunes, sin rellenar precios.")
 
@@ -277,13 +282,15 @@ def generar_report(
         r = simulacion.resumen()
         p = simulacion.parametros
         filas = [
-            ("Escenarios", f"{p.get('n_sims', len(simulacion.trayectorias)):,}".replace(",", ".")),
-            ("Horizonte", f"{p.get('horizonte', simulacion.trayectorias.shape[1] - 1)} días de mercado"),
+            ("Escenarios", f"{len(simulacion.trayectorias):,}".replace(",", ".")),
+            ("Horizonte", f"{simulacion.trayectorias.shape[1] - 1} días de mercado"),
             ("Grados de libertad (nu)", str(p.get("nu", "n/d"))),
             ("Valor inicial", _num(r["valor_inicial"])),
             ("P5 / P50 / P95", f"{_num(r['P5'])} / {_num(r['P50'])} / {_num(r['P95'])}"),
             ("Probabilidad de pérdida", _pct(r["prob_perdida"], 1)),
         ]
+        if "fecha_inicio" in p and "fecha_fin" in p:
+            filas.append(("Histórico de calibración", f"{p['fecha_inicio']} a {p['fecha_fin']}"))
         bloques.append("## Simulación de Monte Carlo\n\n" + _tabla(("Métrica", "Valor"), filas)
                        + "\n\nSon escenarios posibles según los supuestos del modelo, no predicciones.")
 
@@ -351,7 +358,7 @@ def _grafico_correlacion(precios, nombre):
                 valor = corr.iloc[i, j]
                 eje.text(j, i, _num(valor), ha="center", va="center", fontsize=9,
                          color="white" if abs(valor) > 0.65 else "black")
-    eje.set_title(f"Correlación de rendimientos diarios: {nombre}", loc="left", fontweight="bold")
+    eje.set_title(f"Correlación de rendimientos diarios\n{nombre}", loc="left", fontweight="bold")
     figura.colorbar(imagen, ax=eje, shrink=0.8)
     return figura
 
@@ -433,7 +440,7 @@ def generar_plots(
     if desconocidos:
         raise ValueError(f"Gráficos desconocidos: {sorted(desconocidos)}. Opciones: {GRAFICOS}.")
     validar_tabla(precios)
-    precios, benchmark = _alinear_benchmark(precios, benchmark)
+    precios, benchmark, _ = _alinear_benchmark(precios, benchmark)
     if isinstance(ventana_volatilidad, bool) or not isinstance(ventana_volatilidad, int) or ventana_volatilidad < 2:
         raise ValueError("ventana_volatilidad debe ser un entero de al menos 2.")
     pesos = validar_pesos(pesos, precios.columns)

@@ -49,6 +49,18 @@ class TestExtractorYahoo(unittest.TestCase):
         with self.assertRaises(ValueError):
             descargar_serie("AAPL", "2026-02-01", "2026-01-01")
 
+    @patch("miax_toolkit.extractores.yf.Ticker")
+    def test_recorta_el_intervalo_inclusivo_exclusivo(self, ticker_mock):
+        ticker_mock.return_value.history.return_value = self.datos
+        serie = descargar_serie("AAPL", "2026-01-05", "2026-01-07", moneda="USD")
+        self.assertEqual(serie.precios.tolist(), [90., 100.])
+
+    @patch("miax_toolkit.extractores.yf.Ticker")
+    def test_formato_compacto_se_rechaza_antes_de_consultar(self, ticker_mock):
+        with self.assertRaisesRegex(ValueError, "AAAA-MM-DD"):
+            descargar_serie("AAPL", "20260101", "20260201")
+        ticker_mock.assert_not_called()
+
     def test_ticker_vacio(self):
         with self.assertRaises(ValueError):
             descargar_serie(" ", "2026-01-01", "2026-02-01")

@@ -19,6 +19,8 @@ from .modelos import SeriePrecios
 def _intervalo(inicio: str, fin: str):
     try:
         primero, ultimo = date.fromisoformat(inicio), date.fromisoformat(fin)
+        if inicio != primero.isoformat() or fin != ultimo.isoformat():
+            raise ValueError("Formato de fecha no admitido.")
     except (TypeError, ValueError) as error:
         raise ValueError("Las fechas deben tener formato AAAA-MM-DD.") from error
     if primero >= ultimo:
@@ -72,6 +74,9 @@ def _normalizar(tabla, columna_fecha, columna_valor, inicio, fin, nombre):
     fechas = pd.to_datetime(tabla[columna_fecha], errors="coerce")
     valores = pd.to_numeric(tabla[columna_valor], errors="coerce")
     serie = pd.Series(valores.to_numpy(), index=pd.DatetimeIndex(fechas), name=nombre, dtype=float)
+    if serie.index.tz is not None:
+        serie.index = serie.index.tz_localize(None)
+    serie.index = serie.index.normalize()
     # FRED representa festivos y datos no disponibles como puntos o celdas vacías.
     serie = serie[serie.index.notna() & np.isfinite(serie.to_numpy())]
     if serie.index.has_duplicates:
