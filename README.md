@@ -474,11 +474,3 @@ los tests comprueban que coinciden. Los activos de la instantánea se eligieron 
 - [BCE: ejemplos de la API SDMX](https://data.ecb.europa.eu/help/api/data-examples).
 - [Distribución t multivariante: definición y matriz semidefinida](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_t.html)
   (referencia matemática; el motor se implementa con NumPy y no requiere SciPy).
-
-Se aplican las condiciones de cada proveedor. El repositorio contiene los
-adaptadores y ejemplos; la única copia de datos es la pequeña instantánea
-académica de `data/sample/` que usa el dashboard sin conexión (fuentes,
-fecha y condiciones en su propio README). El diseño de la ingesta
-y la normalización toma como referencia los materiales de clase
-`01_DescargaDeDatos`, `01_DescargaDeDatosV2`, `clase_market_signal_ALUMNOS`
-y `01_Fuentes_Datos_Econ_Financieros`.
