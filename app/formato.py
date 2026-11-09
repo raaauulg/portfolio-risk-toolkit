@@ -3,7 +3,6 @@
 Solo da formato a valores que ya vienen calculados; no calcula nada.
 """
 
-from datetime import date, datetime
 import math
 
 NO_DISPONIBLE = "n/d"
@@ -50,7 +49,7 @@ def dinero(x, moneda: str | None, decimales: int = 0) -> str:
 
 
 def fecha(valor) -> str:
-    """Fecha en formato dd/mm/aaaa."""
-    if isinstance(valor, (datetime, date)) or hasattr(valor, "strftime"):
+    """Fecha (date, datetime o pd.Timestamp) en formato dd/mm/aaaa."""
+    if hasattr(valor, "strftime"):
         return valor.strftime("%d/%m/%Y")
     return str(valor)

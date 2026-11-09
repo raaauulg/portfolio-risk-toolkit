@@ -1,8 +1,8 @@
 """Carga de datos (instantánea local o en directo con el toolkit) y caché de Streamlit.
 
-Es la única frontera entre la app y la caché: las funciones puras (leer_instantanea,
-recortar) no dependen de Streamlit; las envolturas con st.cache_* evitan repetir
-descargas, simulaciones y figuras en cada interacción.
+Todas las cachés de la app están aquí. leer_instantanea y recortar no dependen de
+Streamlit; las envolturas con st.cache_* evitan repetir descargas, simulaciones y
+figuras en cada interacción.
 """
 
 from dataclasses import replace
@@ -20,8 +20,6 @@ from app.configuracion import Configuracion
 
 CARPETA_INSTANTANEA = Path(__file__).resolve().parents[1] / "data" / "sample"
 
-
-# ---------- Funciones puras ----------
 
 def leer_instantanea(carpeta: Path = CARPETA_INSTANTANEA) -> tuple[dict[str, SeriePrecios], pd.DataFrame]:
     """Lee los CSV de data/sample y devuelve ({ticker: SeriePrecios}, metadatos).
@@ -53,8 +51,6 @@ def recortar(serie: SeriePrecios, inicio: str, fin: str) -> SeriePrecios:
     return replace(serie, precios=precios)
 
 
-# ---------- Cachés ----------
-
 @st.cache_data(show_spinner=False)
 def instantanea() -> tuple[dict[str, SeriePrecios], pd.DataFrame]:
     """La instantánea se lee una sola vez por proceso."""
@@ -78,9 +74,8 @@ def descargar_en_directo(activos: tuple[str, ...], inicio: str, fin: str,
 class ErrorDeDatos(ValueError):
     """Los datos pedidos no existen o la consulta no es válida (ticker, fechas, rango sin sesiones).
 
-    Envuelve los ValueError que lanza el toolkit al obtener los datos para que la
-    interfaz los distinga de los errores de validación de la cartera. Los fallos de
-    red o del proveedor siguen siendo RuntimeError y no pasan por aquí.
+    Separa los ValueError de la carga de datos de los de validación de la cartera.
+    Los fallos de red o del proveedor siguen siendo RuntimeError.
     """
 
 
@@ -91,8 +86,6 @@ def cargar_series(config: Configuracion) -> tuple[dict[str, SeriePrecios], Serie
     """
     try:
         return _cargar_series(config)
-    except ErrorDeDatos:
-        raise
     except ValueError as error:
         raise ErrorDeDatos(str(error)) from error
 

@@ -15,7 +15,7 @@ NOMBRES_FIGURA = {"rendimiento": "Rendimiento", "correlacion": "Correlación", "
 res = componentes.resultados_o_estado_vacio()
 componentes.cabecera("Informe", res)
 st.caption("Salida literal del núcleo: Cartera.report() y Cartera.plots_report(). Tasa libre y nivel de VaR "
-           "se cambian en el paso ③ de la barra lateral.")
+           "se cambian en el paso 3 de la barra lateral.")
 
 secciones = st.pills("Secciones del informe", SECCIONES, selection_mode="multi", default=list(SECCIONES),
                      format_func=NOMBRES_SECCION.get, key="secciones_informe")
@@ -38,6 +38,7 @@ pestanas = st.tabs([NOMBRES_FIGURA[n] for n in imagenes])
 for pestana, (nombre, png) in zip(pestanas, imagenes.items()):
     with pestana:
         figura, _ = st.columns([5, 1])  # ancho contenido: la figura no se desborda a 1366 px
-        figura.image(png, width="stretch", caption=f"{NOMBRES_FIGURA[nombre]} · figura de matplotlib del toolkit")
+        figura.image(png, width="stretch",
+                     caption=f"{NOMBRES_FIGURA[nombre]} · figura de matplotlib del toolkit")
         st.download_button("Descargar PNG", png, file_name=f"{nombre}.png", mime="image/png",
                            key=f"png_{nombre}", icon=":material/download:")

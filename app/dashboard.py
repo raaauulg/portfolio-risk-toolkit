@@ -22,7 +22,7 @@ st.set_page_config(page_title="MIAX · Analizador de carteras", page_icon=":mate
 st.markdown(estilo.CSS, unsafe_allow_html=True)
 
 barra_lateral.inicializar()
-# ?preset=demo en la URL deja la demo cargada al abrir (capturas y marcador de la presentación).
+# ?preset=<clave> en la URL aplica ese preset al abrir la app (enlaces directos a la demo).
 preset_url = st.query_params.get("preset")
 if preset_url in PRESETS and not st.session_state.get("preset_url_aplicado"):
     st.session_state["preset_url_aplicado"] = True
@@ -33,19 +33,24 @@ config = st.session_state.get("config_aplicada")
 st.session_state["resultados"] = None
 if config is not None:
     try:
-        if len(config.activos) > MAX_ACTIVOS:
-            raise ValueError(f"El dashboard admite como máximo {MAX_ACTIVOS} activos (uno por color de la paleta).")
+        if len(config.activos) > MAX_ACTIVOS:  # el modo En directo no limita los tickers escritos
+            raise ValueError(f"El dashboard admite como máximo {MAX_ACTIVOS} activos "
+                             "(uno por color de la paleta).")
         with st.spinner("Calculando: datos, cartera, Monte Carlo e informe…"):
             st.session_state["resultados"] = datos.resultados(config)
-    except Exception as error:  # nunca un traceback en pantalla
+    except Exception as error:  # mostrar_error decide el mensaje y registra los inesperados
         componentes.mostrar_error(error, config.modo)
 
 paginas = [
     st.Page("paginas/resumen.py", title="Resumen", icon=":material/dashboard:", default=True),
-    st.Page("paginas/datos_calidad.py", title="Datos y calidad", icon=":material/fact_check:", url_path="datos"),
-    st.Page("paginas/cartera_riesgo.py", title="Cartera y riesgo", icon=":material/pie_chart:", url_path="riesgo"),
-    st.Page("paginas/monte_carlo.py", title="Monte Carlo", icon=":material/stacked_line_chart:", url_path="monte_carlo"),
+    st.Page("paginas/datos_calidad.py", title="Datos y calidad", icon=":material/fact_check:",
+            url_path="datos"),
+    st.Page("paginas/cartera_riesgo.py", title="Cartera y riesgo", icon=":material/pie_chart:",
+            url_path="riesgo"),
+    st.Page("paginas/monte_carlo.py", title="Monte Carlo", icon=":material/stacked_line_chart:",
+            url_path="monte_carlo"),
     st.Page("paginas/informe.py", title="Informe", icon=":material/description:", url_path="informe"),
-    st.Page("paginas/arquitectura.py", title="Arquitectura", icon=":material/account_tree:", url_path="arquitectura"),
+    st.Page("paginas/arquitectura.py", title="Arquitectura", icon=":material/account_tree:",
+            url_path="arquitectura"),
 ]
 st.navigation(paginas, position="top").run()

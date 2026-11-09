@@ -6,7 +6,9 @@ import streamlit as st
 from app import componentes, graficos, transformaciones
 from app.formato import numero, porcentaje
 
-res = componentes.resultados_o_estado_vacio()
+VENTANAS = {21: "21 · 1 mes", 63: "63 · 3 meses", 126: "126 · 6 meses"}
+
+res =componentes.resultados_o_estado_vacio()
 modo = componentes.modo_tema()
 componentes.cabecera("Cartera y riesgo", res)
 opciones = {"displaylogo": False}
@@ -29,11 +31,10 @@ st.dataframe(tabla, hide_index=True, width="stretch")
 st.plotly_chart(graficos.correlacion(res.correlacion, modo), width="stretch", config=opciones)
 
 st.subheader("Caídas y volatilidad")
-st.caption("Series derivadas con app/transformaciones.py (mismas fórmulas que las figuras del toolkit, "
-           "verificadas en los tests); el resto de cifras de la página son del toolkit.")
-ventana = st.segmented_control("Ventana de la volatilidad móvil (sesiones)", [21, 63, 126], default=63,
-                               format_func=lambda v: {21: "21 · 1 mes", 63: "63 · 3 meses", 126: "126 · 6 meses"}[v],
-                               key="ventana_volatilidad") or 63
+st.caption("Caídas, volatilidad móvil y rendimientos diarios se derivan del valor de la cartera con "
+           "las mismas fórmulas que las figuras del toolkit. VaR y CVaR son los de reportes.metricas().")
+ventana = st.segmented_control("Ventana de la volatilidad móvil (sesiones)", list(VENTANAS), default=63,
+                               format_func=VENTANAS.get, key="ventana_volatilidad") or 63
 col1, col2 = st.columns(2)
 col1.plotly_chart(graficos.caidas(transformaciones.caidas(res.valores), res.config.nombre, modo),
                   width="stretch", config=opciones)

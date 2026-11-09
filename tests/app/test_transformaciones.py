@@ -1,8 +1,4 @@
-"""Las transformaciones declaradas de app/ coinciden con lo que calcula y dibuja el toolkit.
-
-Es la garantía de que la única excepción a «el dashboard no calcula métricas»
-no introduce cifras distintas de las del núcleo.
-"""
+"""app/transformaciones.py reproduce las series que calcula y dibuja el toolkit."""
 
 import matplotlib.pyplot as plt
 import numpy as np

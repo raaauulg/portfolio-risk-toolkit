@@ -5,7 +5,7 @@
 gatherUsageStats = false
 
 [client]
-# Nunca un traceback en pantalla: los errores se muestran con mensajes propios
+# Sin tracebacks en pantalla: los errores se muestran con mensajes propios
 # y el detalle técnico va a la consola.
 showErrorDetails = "none"
 toolbarMode = "minimal"

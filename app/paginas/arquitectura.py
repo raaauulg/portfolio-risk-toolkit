@@ -12,7 +12,7 @@ DOCS = RAIZ / "docs"
 
 
 def api_usada() -> list[str]:
-    """Nombres de miax_toolkit que importa realmente el código de app/ (leídos de sus imports)."""
+    """Nombres de miax_toolkit que importa el código de app/, leídos de sus imports con ast."""
     nombres = set()
     for fichero in (RAIZ / "app").rglob("*.py"):
         for nodo in ast.walk(ast.parse(fichero.read_text(encoding="utf-8"))):
@@ -40,6 +40,6 @@ with flujo:
                     "5. **Dashboard** → lee esos resultados y los pinta")
 
 st.subheader("API pública que usa el dashboard")
-st.caption("Generada leyendo los imports reales de app/. Ningún nombre empieza por «_»: "
-           "el dashboard no usa partes internas del toolkit.")
+st.caption("Lista generada a partir de los imports de app/. Un test comprueba que ningún nombre "
+           "es privado (prefijo «_»).")
 st.code("\n".join(api_usada()), language="text")

@@ -1,8 +1,8 @@
-"""Textos de ayuda, glosario y explicaciones, escritos para alguien de finanzas que no programa."""
+"""Textos de ayuda, glosario y explicaciones de la interfaz."""
 
 AYUDA = {
-    "modo": "Instantánea: datos reales guardados en el repositorio (descargados el 09/11/2026); "
-            "funciona sin Internet. En directo: descarga de Yahoo Finance y FRED con el toolkit.",
+    "modo": "Instantánea: precios guardados en el repositorio (descargados el 09/11/2026); "
+            "funciona sin conexión. En directo: descarga de Yahoo Finance y FRED con el toolkit.",
     "activos": "Hasta 8 activos de una sola moneda. El toolkit no convierte divisas y rechaza "
                "carteras que las mezclan.",
     "tickers": "Acciones e índices de Yahoo Finance separados por comas, por ejemplo: AAPL, MSFT, ^GSPC. "
@@ -26,8 +26,8 @@ AYUDA = {
     "semilla": "Fija los números aleatorios: con la misma semilla se obtienen exactamente los mismos escenarios.",
     "v0": "Capital inicial de la simulación, en la moneda de la cartera.",
     "tasa_libre": "Tipo libre de riesgo anual para el ratio de Sharpe y el de Sortino. Con 0 % "
-                  "(valor por defecto del toolkit) el Sharpe es mayor que con el tipo real de las "
-                  "letras del Tesoro.",
+                  "(valor por defecto del toolkit) el Sharpe sale mayor que con un tipo positivo, "
+                  "como el de las letras del Tesoro.",
     "nivel_var": "Nivel de confianza del VaR y el CVaR históricos diarios.",
     "calcular": "Aplica la configuración: descarga o lee los datos, construye la cartera, "
                 "la simula y genera el informe. Los resultados quedan en caché.",
@@ -40,8 +40,8 @@ GLOSARIO = {
                               "√252. Mide cuánto oscila la cartera; no distingue subidas de bajadas.",
     "Ratio de Sharpe": "Rentabilidad media anual por encima del tipo libre de riesgo, dividida "
                        "por la volatilidad. Rentabilidad obtenida por cada unidad de riesgo.",
-    "Caída máxima (drawdown)": "Mayor pérdida desde un máximo previo hasta un mínimo posterior. "
-                               "Lo peor que habría vivido quien compró en el peor momento.",
+    "Caída máxima (drawdown)": "Mayor pérdida desde un máximo previo hasta un mínimo posterior: "
+                               "la de quien hubiera comprado en ese máximo y vendido en ese mínimo.",
     "VaR histórico": "Umbral de pérdida diaria estimado con los rendimientos históricos. Al 95 %, "
                      "delimita aproximadamente el 5 % de los peores días. Puede ser negativo si "
                      "incluso esos rendimientos fueron positivos.",
@@ -60,8 +60,8 @@ GLOSARIO = {
                             "los pesos iniciales. Un activo puede pesar poco y aportar mucho riesgo.",
 }
 
-AVISO_MONTE_CARLO = ("Son **escenarios** posibles bajo supuestos constantes, **no predicciones**. "
-                     "Se interpretan la **mediana** y los **percentiles**, no la media.")
+AVISO_MONTE_CARLO = ("Son escenarios posibles bajo supuestos constantes, **no predicciones**. "
+                     "Se interpretan la mediana y los percentiles, no la media.")
 
 ESTADO_VACIO = ("Elige un preset en la barra lateral (por ejemplo, **Demo de la presentación**) "
                 "o configura los tres pasos y pulsa **Calcular**.")
@@ -70,12 +70,11 @@ ARQUITECTURA = [
     "El toolkit separa capas: los adaptadores crean `SeriePrecios` o `SerieIndicador` según "
     "el dato. La `Cartera` agrupa precios, valida y delega; los módulos de limpieza, Monte Carlo "
     "e informes hacen los cálculos sin conocer ni las APIs ni la cartera.",
-    "Este dashboard es una capa de presentación más: un consumidor de la API pública del "
-    "toolkit, igual que los scripts de `ejemplos/`. Las métricas, los informes y las simulaciones "
-    "proceden del núcleo; `app/transformaciones.py` deriva las series auxiliares para dibujar.",
-    "**Este dashboard no modifica ni una línea de `src/`.** Se añadió como un paquete "
-    "aparte (`app/`) con dependencias opcionales (`pip install -e \".[app]\"`); "
-    "`import miax_toolkit` no carga Streamlit ni Plotly.",
+    "El dashboard es una capa de presentación: consume la API pública del toolkit, igual que "
+    "los scripts de `ejemplos/`. Las métricas, los informes y las simulaciones proceden del "
+    "núcleo; `app/transformaciones.py` solo deriva series auxiliares para los gráficos.",
+    "Vive en un paquete aparte (`app/`) que no modifica `src/` y tiene dependencias opcionales "
+    "(`pip install -e \".[app]\"`); `import miax_toolkit` no carga Streamlit ni Plotly.",
     "Las validaciones también son del toolkit: si unos pesos no suman 100 % o la cartera "
     "mezcla monedas, el aviso que se ve es el mensaje del propio `ValueError`.",
     "Un nuevo adaptador de precios que cumpla el contrato de `SeriePrecios` se puede usar sin "

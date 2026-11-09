@@ -1,4 +1,4 @@
-"""Barra lateral: presets de un clic y configuración guiada en tres pasos.
+"""Barra lateral: presets y configuración en tres pasos.
 
 Los widgets guardan su valor en st.session_state (claves w_*). Nada se calcula al
 mover un control: solo al pulsar «Calcular» (o un preset) se fija
@@ -106,14 +106,13 @@ def dibujar() -> None:
     barra.markdown("### :material/monitoring: Analizador de carteras")
     barra.caption("Toolkit MIAX B1-T1 · capa de presentación")
 
-    barra.markdown("**Presets de un clic**")
+    barra.markdown("**Presets**")
     for clave, preset in PRESETS.items():
         barra.button(preset.titulo, key=f"preset_{clave}", help=preset.descripcion, width="stretch",
                      type="primary" if clave == "demo" else "secondary",
                      on_click=aplicar_preset, args=(clave,))
 
-    # ① Datos
-    barra.markdown("---\n**① Datos**")
+    barra.markdown("---\n**1. Datos**")
     barra.radio("Modo de datos", ["instantanea", "directo"], key="w_modo", horizontal=True,
                 format_func={"instantanea": "Instantánea", "directo": "En directo"}.get, help=AYUDA["modo"])
     if s["w_modo"] == "instantanea":
@@ -135,12 +134,11 @@ def dibujar() -> None:
                     format_func=lambda b: "Sin benchmark" if b == _SIN_BENCHMARK else BENCHMARKS[b],
                     help=AYUDA["benchmark"])
 
-    # ② Cartera
-    barra.markdown("---\n**② Cartera**")
+    barra.markdown("---\n**2. Cartera**")
     barra.text_input("Nombre de la cartera", key="w_nombre")
     activos = _activos_elegidos()
     if not activos:
-        barra.caption("Elige al menos un activo en el paso ①.")
+        barra.caption("Elige al menos un activo en el paso 1.")
     for activo in activos:
         s.setdefault(f"w_peso_{activo}", 0.0)
         barra.number_input(f"{activo} (%)", min_value=0.0, max_value=100.0, step=0.5, format="%.2f",
@@ -154,8 +152,7 @@ def dibujar() -> None:
             barra.warning(f"Suma: {porcentaje(suma / 100)}. Los pesos deben sumar 100 %.",
                           icon=":material/error:")
 
-    # ③ Simulación
-    barra.markdown("---\n**③ Simulación y métricas**")
+    barra.markdown("---\n**3. Simulación y métricas**")
     barra.number_input("Escenarios", min_value=500, max_value=MAX_ESCENARIOS, step=500,
                        key="w_n_sims", help=AYUDA["n_sims"])
     barra.select_slider("Horizonte (días de mercado)", options=list(HORIZONTES), key="w_horizonte",

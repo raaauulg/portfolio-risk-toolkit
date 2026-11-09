@@ -1,12 +1,10 @@
-"""Transformaciones de presentación que la API pública del toolkit no expone.
+"""Series auxiliares para los gráficos que la API pública del toolkit no expone.
 
-Es la ÚNICA excepción a la regla «el dashboard no calcula métricas». El toolkit
-calcula estas series dentro de sus figuras de matplotlib (reportes._grafico_evolucion
-y reportes._grafico_riesgo), pero no las ofrece como funciones públicas. Aquí se
-replican con las mismas fórmulas, y tests/app/test_transformaciones.py comprueba
-que coinciden con los datos de esas figuras y con reportes.metricas().
-
-Se mantienen aquí porque su uso es visual y la API pública del núcleo no las expone.
+Son la excepción a la regla de que el dashboard no calcula métricas. El toolkit las
+calcula dentro de sus figuras de matplotlib (reportes._grafico_evolucion y
+reportes._grafico_riesgo) sin ofrecerlas como funciones públicas; aquí se replican
+con las mismas fórmulas y tests/app/test_transformaciones.py comprueba que coinciden
+con esas figuras y con reportes.metricas().
 """
 
 import numpy as np

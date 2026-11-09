@@ -1,10 +1,10 @@
 """La app completa con streamlit.testing.v1.AppTest, sin navegador y sin Internet."""
 
 from datetime import date
-import socket
-import warnings
 from pathlib import Path
+import socket
 from unittest.mock import patch
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ PAGINAS = ["paginas/datos_calidad.py", "paginas/cartera_riesgo.py", "paginas/mon
 
 
 @pytest.fixture(autouse=True)
-def cachés_limpias():
+def caches_limpias():
     st.cache_data.clear()
     st.cache_resource.clear()
     yield
@@ -58,7 +58,6 @@ def test_preset_demo_deja_todas_las_paginas_listas(via):
     _sin_errores(app)
     assert len(app.metric) == 6  # tarjetas KPI del Resumen
     assert "cambios sin aplicar" not in _textos(app.sidebar.info)
-    assert st.session_state is not None
     for pagina in PAGINAS:
         app.switch_page(pagina).run()
         _sin_errores(app)

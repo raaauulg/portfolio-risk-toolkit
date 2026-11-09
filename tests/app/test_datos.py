@@ -1,8 +1,9 @@
 """La instantánea local se convierte en SeriePrecios con su procedencia marcada."""
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
-from unittest.mock import patch
 
 from miax_toolkit import SeriePrecios
 

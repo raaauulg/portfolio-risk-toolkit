@@ -11,7 +11,7 @@ from app.formato import fecha
 
 registro = logging.getLogger("miax_dashboard")
 
-# Nivel del aviso del toolkit -> (función de Streamlit, icono, etiqueta). Nunca solo color.
+# Nivel del aviso del toolkit -> (función de Streamlit, icono, etiqueta).
 _NIVELES = {
     "ALTO": (st.error, ":material/warning:", "Riesgo alto"),
     "MEDIO": (st.warning, ":material/error:", "Riesgo medio"),
@@ -20,11 +20,8 @@ _NIVELES = {
 
 
 def modo_tema() -> str:
-    """'claro' u 'oscuro' según el tema activo del navegador (claro si no se conoce)."""
-    try:
-        return "oscuro" if st.context.theme.type == "dark" else "claro"
-    except Exception:  # fuera de un navegador (tests) no hay tema
-        return "claro"
+    """'claro' u 'oscuro' según el tema del navegador; 'claro' si no se conoce (p. ej., en AppTest)."""
+    return "oscuro" if st.context.theme.type == "dark" else "claro"
 
 
 def resultados_o_estado_vacio() -> Resultados:
@@ -48,8 +45,7 @@ def cabecera(titulo: str, res: Resultados, *, calibracion: bool = False) -> None
 
 def tarjeta(columna, titulo: str, valor: str, ayuda: str, delta: str | None = None,
             delta_color: str = "off", flecha: bool = True) -> None:
-    """Tarjeta KPI. Un delta comparativo lleva flecha y texto (no depende solo del color);
-    un dato complementario (flecha=False) se muestra como nota gris sin flecha."""
+    """Tarjeta KPI. Con flecha=False el delta es un dato complementario: nota gris, sin flecha."""
     columna.metric(titulo, valor, delta=delta, delta_color=delta_color if flecha else "off",
                    delta_arrow="auto" if flecha else "off", help=ayuda, border=True)
 
@@ -66,7 +62,7 @@ def advertencias(avisos: list[tuple[str, str]], informe: str) -> None:
 
 
 def mostrar_error(error: Exception, modo: str) -> None:
-    """Muestra un error sin traceback: el mensaje del toolkit o uno amable si es de red."""
+    """Muestra un error sin traceback, con un mensaje según su tipo."""
     # Convención del toolkit: RuntimeError = fallo de red o del proveedor (reintentar);
     # ValueError = la petición no es válida o no hay datos (cambiar ticker, fechas o pesos).
     if isinstance(error, RuntimeError):

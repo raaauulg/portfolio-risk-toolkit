@@ -1,10 +1,9 @@
 """Figuras interactivas de Plotly a partir de resultados ya calculados por el toolkit.
 
-Funciones puras: reciben series o tablas y devuelven go.Figure, sin Streamlit, para
-poder probarlas con pytest. No calculan métricas; como mucho agrupan en intervalos
-para dibujar un histograma.
-Convenciones: porcentajes en el eje como 0-100 con sufijo « %», fechas dd/mm/aaaa,
-separadores españoles (plantilla en estilo.aplicar).
+Funciones puras: reciben series o tablas y devuelven go.Figure, sin Streamlit. No
+calculan métricas; como mucho agrupan en intervalos para dibujar un histograma.
+Porcentajes en el eje como 0-100 con sufijo « %», fechas dd/mm/aaaa y separadores
+españoles (plantilla en estilo.aplicar).
 """
 
 import numpy as np
@@ -65,14 +64,15 @@ def composicion(pesos: pd.Series, modo: str = "claro") -> go.Figure:
 
 
 def peso_vs_riesgo(pesos: pd.Series, riesgo: pd.Series, modo: str = "claro") -> go.Figure:
-    """Peso inicial frente a aportación al riesgo. La trama rayada distingue la segunda serie sin depender del color."""
+    """Peso inicial frente a aportación al riesgo; la segunda serie lleva trama rayada."""
     t = estilo.tokens(modo)
     orden = riesgo.sort_values().index
+    trama = dict(shape="/", fillmode="overlay", fgcolor=t["fondo"], fgopacity=0.6, solidity=0.25)
     figura = go.Figure([
         go.Bar(y=orden, x=pesos[orden] * 100, name="Peso", orientation="h", marker_color=t["series"][0],
                hovertemplate="%{y} · peso: %{x:,.1f} %<extra></extra>"),
         go.Bar(y=orden, x=riesgo[orden] * 100, name="Aportación al riesgo", orientation="h",
-               marker=dict(color=t["series"][1], pattern=dict(shape="/", fillmode="overlay", fgcolor=t["fondo"], fgopacity=0.6, solidity=0.25)),
+               marker=dict(color=t["series"][1], pattern=trama),
                hovertemplate="%{y} · aportación al riesgo: %{x:,.1f} %<extra></extra>"),
     ])
     figura.update_layout(barmode="group", bargap=0.25)
@@ -207,17 +207,17 @@ def histograma_final(finales: np.ndarray, resumen: dict, limites: tuple[float, f
 
 def comparador_colas(valores_t: np.ndarray, valores_normal: np.ndarray, nu: float, nu_normal: float,
                      limites: tuple[float, float], moneda: str, dia: int, modo: str = "claro") -> go.Figure:
-    """Distribución del valor en el día `dia` con el nu elegido frente a nu alto (casi normal), misma semilla.
+    """Distribución del valor en el día `dia` con el nu elegido frente a un nu alto, misma semilla.
 
-    Escaleras con línea continua frente a discontinua (no depende del color) y eje Y
-    logarítmico para que se vean las colas, donde está la diferencia.
+    Eje Y logarítmico para que se vean las colas, que es donde difieren.
     """
     t = estilo.tokens(modo)
     bordes = np.linspace(limites[0], limites[1], 61)
     centros = (bordes[:-1] + bordes[1:]) / 2
     figura = go.Figure()
-    for valores, nombre, color, guion in ((valores_normal, f"nu = {nu_normal:g} (casi normal)", t["series"][1], "dash"),
-                                          (valores_t, f"nu = {nu:g} (elegido)", t["series"][0], "solid")):
+    trazas = ((valores_normal, f"nu = {nu_normal:g} (casi normal)", t["series"][1], "dash"),
+              (valores_t, f"nu = {nu:g} (elegido)", t["series"][0], "solid"))
+    for valores, nombre, color, guion in trazas:
         cuenta, _ = np.histogram(valores, bins=bordes)
         porcentaje_escenarios = np.where(cuenta > 0, cuenta / len(valores) * 100, np.nan)
         figura.add_trace(go.Scatter(

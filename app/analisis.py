@@ -1,9 +1,8 @@
 """Orquesta las llamadas al toolkit para una configuración y reúne los resultados.
 
 No calcula métricas: todas las cifras salen de miax_toolkit (Cartera, reportes,
-estimar_parametros, SimulationResult). Aquí solo se decide QUÉ se llama, en qué
-orden y sobre qué fechas, para que el dashboard muestre lo mismo que el informe.
-Sin Streamlit: se prueba con pytest a secas.
+estimar_parametros, SimulationResult). Aquí se decide qué se llama y sobre qué
+fechas, para que el dashboard muestre lo mismo que el informe. No depende de Streamlit.
 """
 
 from dataclasses import dataclass
@@ -73,11 +72,9 @@ def extraer_advertencias(informe: str) -> list[tuple[str, str]]:
     return avisos
 
 
-def _fechas_comunes(tabla: pd.DataFrame, benchmark: SeriePrecios | None):
-    """Restringe el análisis a las fechas con dato del benchmark, igual que hace el informe.
-
-    Es un filtro de fechas (no una métrica) con la función pública limpiar_precios.
-    """
+def _fechas_comunes(tabla: pd.DataFrame,
+                    benchmark: SeriePrecios | None) -> tuple[pd.DataFrame, pd.Series | None]:
+    """Restringe el análisis a las fechas con dato del benchmark, igual que hace el informe."""
     if benchmark is None:
         return tabla, None
     referencia, _ = limpiar_precios(benchmark.precios, nombre="benchmark")

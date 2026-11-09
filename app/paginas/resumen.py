@@ -17,22 +17,24 @@ nivel = porcentaje(res.config.nivel_var, 0)
 
 
 def _frente(clave: str) -> str | None:
-    """Diferencia frente al benchmark, en puntos porcentuales (resta de dos salidas de metricas)."""
+    """Diferencia frente al benchmark en puntos porcentuales, o None si no hay benchmark."""
     if ref is None:
         return None
     return f"{puntos(m[clave] - ref[clave])} vs {nombre_ref}"
 
+
+delta_sharpe = None
+if ref is not None:
+    diferencia = m["sharpe"] - ref["sharpe"]
+    delta_sharpe = f"{'+' if diferencia > 0 else ''}{numero(diferencia)} vs {nombre_ref}"
 
 fila1 = st.columns(3)
 componentes.tarjeta(fila1[0], "Rentabilidad anualizada", porcentaje(m["rent_anual"]),
                     GLOSARIO["Rentabilidad anualizada"], _frente("rent_anual"), "normal")
 componentes.tarjeta(fila1[1], "Volatilidad anualizada", porcentaje(m["volatilidad"]),
                     GLOSARIO["Volatilidad anualizada"], _frente("volatilidad"), "inverse")
-componentes.tarjeta(
-    fila1[2], f"Ratio de Sharpe (tasa libre {porcentaje(res.config.tasa_libre, 2)})", numero(m["sharpe"]),
-    GLOSARIO["Ratio de Sharpe"],
-    None if ref is None else f"{'+' if m['sharpe'] > ref['sharpe'] else ''}{numero(m['sharpe'] - ref['sharpe'], 2)} vs {nombre_ref}",
-    "normal")
+componentes.tarjeta(fila1[2], f"Ratio de Sharpe (tasa libre {porcentaje(res.config.tasa_libre, 2)})",
+                    numero(m["sharpe"]), GLOSARIO["Ratio de Sharpe"], delta_sharpe, "normal")
 fila2 = st.columns(3)
 componentes.tarjeta(fila2[0], "Caída máxima", porcentaje(m["caida_maxima"]),
                     GLOSARIO["Caída máxima (drawdown)"], _frente("caida_maxima"), "normal")
