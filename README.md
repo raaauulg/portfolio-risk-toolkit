@@ -293,10 +293,12 @@ reproducir los seis bloques del taller.
 ## Decisiones de diseño
 
 **DataClasses que se validan al crearse.** `SeriePrecios`, `SerieIndicador`,
-`Cartera` y `SimulationResult` son `@dataclass`. Su `__post_init__` rechaza los
-datos inválidos, así que no puede existir un objeto en un estado incorrecto.
-`SeriePrecios` calcula además la media y la desviación típica al instanciarse,
-como pide el apartado 4.3.
+`Cartera` y `SimulationResult` son `@dataclass`. Su `__post_init__` comprueba los
+requisitos de cada objeto. Los controles necesarios para analizar una cartera
+(frecuencia, moneda y precios limpios) se aplican antes de cada análisis.
+Los objetos son mutables: cambiar sus atributos no vuelve a ejecutar
+`__post_init__`. `SeriePrecios` calcula además la media y la desviación típica
+al instanciarse, como pide el apartado 4.3.
 
 **Composición y delegación en lugar de herencia.** `Cartera` *agrega* objetos
 `SeriePrecios` y sus métodos `monte_carlo()`, `report()` y `plots_report()` son
@@ -309,10 +311,11 @@ tablas de pandas y no conocen `Cartera` ni las APIs. Así:
 - se puede cambiar un cálculo (por ejemplo, el modelo de simulación) sin tocar
   las clases de datos.
 
-Se descartó una jerarquía con una clase base `Serie` porque no existe una
-relación «es un» útil: un indicador macroeconómico no es una serie de precios
-y no debe poder entrar en una cartera. Separarlos en dos clases hace que ese
-error sea imposible, no algo que haya que comprobar.
+Se eligieron dos clases independientes para mantener sencillo el diseño:
+un indicador macroeconómico no es un precio y no debe entrar directamente en
+una cartera. Aunque sería posible una base común para series temporales,
+no resulta necesaria para compartir los atributos del contrato. `Cartera`
+comprueba expresamente que todos sus activos sean objetos `SeriePrecios`.
 
 **Contrato de datos común.** Cualquier adaptador entrega una `pandas.Series` de
 `float` con `DatetimeIndex` sin zona horaria, ordenado y sin fechas duplicadas,
@@ -334,7 +337,9 @@ esos shocks, se interpretan la mediana y los percentiles (véase
 **Limitaciones conocidas del diseño.**
 
 - La interfaz común de `SeriePrecios` y `SerieIndicador` es una convención que
-  no comprueba el código. Un `typing.Protocol` la haría explícita y verificable.
+  no se declara mediante un tipo común; las DataClasses validan sus datos y las
+  pruebas comprueban el contrato de los adaptadores. Un `typing.Protocol`
+  permitiría además comprobarlo con herramientas de análisis estático.
 - Los adaptadores son funciones, no clases con una interfaz abstracta común
   (`ABC`). Con cuatro fuentes es suficiente, pero un contrato formal ayudaría
   si el número de proveedores creciera.
@@ -344,8 +349,10 @@ esos shocks, se interpretan la mediana y los percentiles (véase
 
 ## Cómo añadir una nueva fuente de datos
 
-Basta con escribir un adaptador; la cartera, la limpieza, el motor y los
-informes no cambian porque solo consumen `SeriePrecios`.
+Para incorporar una fuente de precios basta con escribir un adaptador que
+cumpla el contrato: la cartera, la limpieza, el motor y los informes no cambian.
+Los indicadores usan la interfaz de consulta común y se mantienen separados
+del análisis de carteras.
 
 1. **Escribe una función de descarga** en un módulo de ingesta (por ejemplo,
    en `fuentes.py`, donde ya existen las utilidades `_intervalo`, `_csv` y
@@ -369,7 +376,7 @@ def descargar_precios_mi_proveedor(ticker: str, inicio: str, fin: str,
                                    moneda: str) -> SeriePrecios:
     """Cierres diarios de Mi Proveedor normalizados al contrato común."""
     primero, ultimo = _intervalo(inicio, fin)
-    tabla = _csv("https://ejemplo.com/precios.csv", {"s": ticker}, "Mi Proveedor")
+    tabla = _csv("https://proveedor.example/precios.csv", {"s": ticker}, "Mi Proveedor")
     precios = _normalizar(tabla, "Date", "Close", primero, ultimo, ticker.upper())
     return SeriePrecios(ticker.upper(), precios, "Mi Proveedor",
                         moneda=moneda, ajuste="no_especificado")
