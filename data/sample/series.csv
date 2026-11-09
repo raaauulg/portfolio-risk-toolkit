@@ -1,0 +1,18 @@
+ticker,nombre,universo,fuente,tipo_activo,moneda,frecuencia,unidad,ajuste,inicio,fin_exclusivo,fecha_descarga
+AAPL,Apple,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+MSFT,Microsoft,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+NVDA,NVIDIA,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+AMZN,Amazon,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+GOOGL,Alphabet,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+JPM,JPMorgan Chase,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+JNJ,Johnson & Johnson,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+XOM,Exxon Mobil,eeuu,Yahoo Finance,accion,USD,diaria,USD,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+^GSPC,S&P 500,eeuu,FRED,indice,USD,diaria,puntos de indice,indice_precios,2021-01-01,2026-01-01,2026-11-09
+SAN.MC,Banco Santander,europa,Yahoo Finance,accion,EUR,diaria,EUR,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+IBE.MC,Iberdrola,europa,Yahoo Finance,accion,EUR,diaria,EUR,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+ITX.MC,Inditex,europa,Yahoo Finance,accion,EUR,diaria,EUR,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+SAP.DE,SAP,europa,Yahoo Finance,accion,EUR,diaria,EUR,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+ASML.AS,ASML,europa,Yahoo Finance,accion,EUR,diaria,EUR,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+MC.PA,LVMH,europa,Yahoo Finance,accion,EUR,diaria,EUR,dividendos_y_splits,2021-01-01,2026-01-01,2026-11-09
+^STOXX50E,Euro Stoxx 50,europa,Yahoo Finance,indice,EUR,diaria,puntos de indice,indice_precios,2021-01-01,2026-01-01,2026-11-09
+^IBEX,IBEX 35,europa,Yahoo Finance,indice,EUR,diaria,puntos de indice,indice_precios,2021-01-01,2026-01-01,2026-11-09
