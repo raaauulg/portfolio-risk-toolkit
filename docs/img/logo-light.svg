@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="120" viewBox="0 0 640 120" role="img" aria-label="miax-toolkit">
+  <rect x="4" y="10" width="100" height="100" rx="22" fill="#eef3fb"/>
+  <path d="M20 72 C40 60, 60 40, 88 24 L88 70 C60 76, 40 78, 20 76 Z" fill="#2a78d6" fill-opacity="0.25"/>
+  <path d="M20 73 C40 64, 60 52, 88 40 L88 60 C60 66, 40 72, 20 75 Z" fill="#2a78d6" fill-opacity="0.45"/>
+  <path d="M20 74 C40 68, 60 58, 88 50" fill="none" stroke="#1c5cab" stroke-width="5" stroke-linecap="round"/>
+  <line x1="20" y1="92" x2="88" y2="92" stroke="#52514e" stroke-width="3" stroke-linecap="round"/>
+  <text x="128" y="70" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="54" font-weight="700" fill="#0b0b0b" letter-spacing="-1">miax<tspan fill="#1c5cab">-toolkit</tspan></text>
+  <text x="131" y="100" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="18" fill="#52514e">Datos de mercado · Carteras · Monte Carlo · Informes</text>
+</svg>
