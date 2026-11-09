@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "raul/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: Pruebas (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Instalar el toolkit con los extras dev y app
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,app]"
+          python -m pip check
+      - name: Pruebas
+        run: python -W error -m pytest -q
+      - name: Demostración sin conexión
+        run: python ejemplos/demo_completa.py --salida "${{ runner.temp }}/demo"
+
+  nucleo:
+    # El toolkit debe instalarse y probarse sin las dependencias del dashboard.
+    name: Núcleo sin dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Instalar solo el toolkit y pytest
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Pruebas del núcleo (las del dashboard se omiten)
+        run: python -W error -m pytest -q

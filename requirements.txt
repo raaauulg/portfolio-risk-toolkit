@@ -1,0 +1,4 @@
+# Para Streamlit Community Cloud, que instala las dependencias desde este fichero.
+# Instala el toolkit desde la raíz del repositorio con el extra del dashboard; las
+# versiones fijadas están en pyproject.toml.
+.[app]
