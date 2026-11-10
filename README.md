@@ -17,6 +17,8 @@ analizar carteras, simular escenarios de Monte Carlo y generar informes, con un 
 
 [**Demo en vivo**](https://portfolio-risk-toolkit.streamlit.app/?preset=demo) · [Inicio rápido](#inicio-rápido) · [Uso](#uso-como-librería) · [Dashboard](#dashboard) · [Arquitectura](#arquitectura) · [Funcionamiento](#funcionamiento-en-detalle) · [Hoja de ruta](#hoja-de-ruta) · [Licencia](#licencia)
 
+[English](README.en.md) · **Español**
+
 </div>
 
 portfolio-risk-toolkit nació como trabajo del taller B1-T1 del máster MIAX (Instituto BME): una librería modular en la
